@@ -122,6 +122,7 @@ module.exports = function (User) {
 		return userData.uid;
 	}
 
+
 	async function storePassword(uid, password) {
 		if (!password) {
 			return;
