@@ -10,12 +10,14 @@ const plugins = require('../plugins');
 const privileges = require('../privileges');
 const utils = require('../utils');
 
+console.log('Ashwaq');
 
 module.exports = function (Topics) {
 	const topicTools = {};
 	Topics.tools = topicTools;
 
 	topicTools.delete = async function (tid, uid) {
+		console.log('Ashwaq: Refactored code executed');
 		return await toggleDelete(tid, uid, true);
 	};
 
@@ -25,40 +27,25 @@ module.exports = function (Topics) {
 
 	async function toggleDelete(tid, uid, isDelete) {
 		const topicData = await Topics.getTopicData(tid);
-		if (!topicData) {
-			throw new Error('[[error:no-topic]]');
-		}
-		// Scheduled topics can only be purged
-		if (topicData.scheduled) {
-			throw new Error('[[error:invalid-data]]');
-		}
+		validateTopicData(topicData);
+
 		const canDelete = await privileges.topics.canDelete(tid, uid);
-
 		const hook = isDelete ? 'delete' : 'restore';
-		const data = await plugins.hooks.fire(`filter:topic.${hook}`, { topicData: topicData, uid: uid, isDelete: isDelete, canDelete: canDelete, canRestore: canDelete });
+		const data = await plugins.hooks.fire(`filter:topic.${hook}`, { topicData, uid, isDelete, canDelete, canRestore: canDelete });
 
-		if ((!data.canDelete && data.isDelete) || (!data.canRestore && !data.isDelete)) {
-			throw new Error('[[error:no-privileges]]');
-		}
-		if (data.topicData.deleted && data.isDelete) {
-			throw new Error('[[error:topic-already-deleted]]');
-		} else if (!data.topicData.deleted && !data.isDelete) {
-			throw new Error('[[error:topic-already-restored]]');
-		}
+		validatePermissions(data);
+
 		if (data.isDelete) {
 			await Topics.delete(data.topicData.tid, data.uid);
 		} else {
 			await Topics.restore(data.topicData.tid);
 		}
-		const events = await Topics.events.log(tid, { type: isDelete ? 'delete' : 'restore', uid });
 
+		const events = await Topics.events.log(tid, { type: isDelete ? 'delete' : 'restore', uid });
 		data.topicData.deleted = data.isDelete ? 1 : 0;
 
-		if (data.isDelete) {
-			plugins.hooks.fire('action:topic.delete', { topic: data.topicData, uid: data.uid });
-		} else {
-			plugins.hooks.fire('action:topic.restore', { topic: data.topicData, uid: data.uid });
-		}
+		await fireActionHook(data);
+
 		const userData = await user.getUserFields(data.uid, ['username', 'userslug']);
 		return {
 			tid: data.topicData.tid,
@@ -68,6 +55,32 @@ module.exports = function (Topics) {
 			user: userData,
 			events,
 		};
+	}
+
+	function validateTopicData(topicData) {
+		if (!topicData) {
+			throw new Error('[[error:no-topic]]');
+		}
+		if (topicData.scheduled) {
+			throw new Error('[[error:invalid-data]]');
+		}
+	}
+
+	function validatePermissions(data) {
+		if ((!data.canDelete && data.isDelete) || (!data.canRestore && !data.isDelete)) {
+			console.log('Ashwaq: Refactored code executed');
+			throw new Error('[[error:no-privileges]]');
+		}
+		if (data.topicData.deleted && data.isDelete) {
+			throw new Error('[[error:topic-already-deleted]]');
+		} else if (!data.topicData.deleted && !data.isDelete) {
+			throw new Error('[[error:topic-already-restored]]');
+		}
+	}
+
+	async function fireActionHook(data) {
+		const action = data.isDelete ? 'action:topic.delete' : 'action:topic.restore';
+		await plugins.hooks.fire(action, { topic: data.topicData, uid: data.uid });
 	}
 
 	topicTools.purge = async function (tid, uid) {
