@@ -245,36 +245,19 @@ function setupCookie() {
 }
 
 async function listen() {
-	let port = nconf.get('port');
-	const isSocket = isNaN(port) && !Array.isArray(port);
+	let port = parsePort(nconf.get('port'));
+	const isSocket = checkIfSocket(port);
 	const socketPath = isSocket ? nconf.get('port') : '';
 
 	if (Array.isArray(port)) {
-		if (!port.length) {
-			winston.error('[startup] empty ports array in config.json');
-			process.exit();
-		}
-
-		winston.warn('[startup] If you want to start nodebb on multiple ports please use loader.js');
-		winston.warn(`[startup] Defaulting to first port in array, ${port[0]}`);
-		port = port[0];
-		if (!port) {
-			winston.error('[startup] Invalid port, exiting');
-			process.exit();
-		}
-	}
-	port = parseInt(port, 10);
-	if ((port !== 80 && port !== 443) || nconf.get('trust_proxy') === true) {
-		winston.info('🤝 Enabling \'trust proxy\'');
-		app.enable('trust proxy');
+		port = handleArrayPort(port);
 	}
 
-	if ((port === 80 || port === 443) && process.env.NODE_ENV !== 'development') {
-		winston.info('Using ports 80 and 443 is not recommend; use a proxy instead. See README.md');
-	}
+	configureTrustProxy(port);
+	warnIfUsingRestrictedPort(port);
 
-	const bind_address = ((nconf.get('bind_address') === '0.0.0.0' || !nconf.get('bind_address')) ? '0.0.0.0' : nconf.get('bind_address'));
-	const args = isSocket ? [socketPath] : [port, bind_address];
+	const bindAddress = getBindAddress();
+	const args = buildArgs(isSocket, socketPath, port, bindAddress);
 	let oldUmask;
 
 	if (isSocket) {
@@ -287,12 +270,65 @@ async function listen() {
 		}
 	}
 
+	return startServer(args, isSocket, socketPath, bindAddress, port, oldUmask);
+}
+
+// Helper functions
+
+function parsePort(port) {
+	return parseInt(port, 10);
+}
+
+function checkIfSocket(port) {
+	return isNaN(port) && !Array.isArray(port);
+}
+
+function handleArrayPort(port) {
+	if (!port.length) {
+		winston.error('[startup] empty ports array in config.json');
+		process.exit();
+	}
+
+	winston.warn('[startup] If you want to start nodebb on multiple ports please use loader.js');
+	winston.warn(`[startup] Defaulting to first port in array, ${port[0]}`);
+	port = port[0];
+
+	if (!port) {
+		winston.error('[startup] Invalid port, exiting');
+		process.exit();
+	}
+
+	return port;
+}
+
+function configureTrustProxy(port) {
+	if ((port !== 80 && port !== 443) || nconf.get('trust_proxy') === true) {
+		winston.info('🤝 Enabling \'trust proxy\'');
+		app.enable('trust proxy');
+	}
+}
+
+function warnIfUsingRestrictedPort(port) {
+	if ((port === 80 || port === 443) && process.env.NODE_ENV !== 'development') {
+		winston.info('Using ports 80 and 443 is not recommended; use a proxy instead. See README.md');
+	}
+}
+
+function getBindAddress() {
+	return (nconf.get('bind_address') === '0.0.0.0' || !nconf.get('bind_address')) ? '0.0.0.0' : nconf.get('bind_address');
+}
+
+function buildArgs(isSocket, socketPath, port, bindAddress) {
+	return isSocket ? [socketPath] : [port, bindAddress];
+}
+
+function startServer(args, isSocket, socketPath, bindAddress, port, oldUmask) {
 	return new Promise((resolve, reject) => {
 		server.listen(...args.concat([function (err) {
-			const onText = `${isSocket ? socketPath : `${bind_address}:${port}`}`;
+			const onText = isSocket ? socketPath : `${bindAddress}:${port}`;
 			if (err) {
 				winston.error(`[startup] NodeBB was unable to listen on: ${chalk.yellow(onText)}`);
-				reject(err);
+				return reject(err);
 			}
 
 			winston.info(`📡 NodeBB is now listening on: ${chalk.yellow(onText)}`);

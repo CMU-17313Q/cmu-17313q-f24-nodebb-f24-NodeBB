@@ -129,27 +129,28 @@ Settings.prototype.persist = function (callback) {
  @param def The default value, if not set global default value gets used.
  @returns Object The setting to be used.
  */
+
+// Used ChatGPT for refactoring
 Settings.prototype.get = function (key, def) {
-	let obj = this.cfg._;
 	const parts = (key || '').split('.');
-	let part;
+	const obj = this._getValue(this.cfg._, parts);
+
+	if (obj === undefined) {
+		def = def !== undefined ? def : this._getValue(this.defCfg, parts);
+		return def;
+	}
+
+	return obj;
+};
+
+Settings.prototype._getValue = function (obj, parts) {
 	for (let i = 0; i < parts.length; i += 1) {
-		part = parts[i];
+		const part = parts[i];
 		if (part && obj != null) {
 			obj = obj[part];
+		} else {
+			return undefined;
 		}
-	}
-	if (obj === undefined) {
-		if (def === undefined) {
-			def = this.defCfg;
-			for (let j = 0; j < parts.length; j += 1) {
-				part = parts[j];
-				if (part && def != null) {
-					def = def[part];
-				}
-			}
-		}
-		return def;
 	}
 	return obj;
 };
