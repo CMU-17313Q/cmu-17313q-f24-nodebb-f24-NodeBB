@@ -5,11 +5,15 @@ const nconf = require('nconf');
 const validator = require('validator');
 const qs = require('querystring');
 
+
 const db = require('../database');
 const privileges = require('../privileges');
 const user = require('../user');
 const categories = require('../categories');
 const meta = require('../meta');
+
+const isRssEnabled = !meta.config['feeds:disableRSS'];
+
 const pagination = require('../pagination');
 const helpers = require('./helpers');
 const utils = require('../utils');
@@ -136,7 +140,8 @@ categoryController.get = async function (req, res, next) {
 	categoryData.selectedTags = tagData.selectedTags;
 	categoryData.sortOptionLabel = `[[topic:${validator.escape(String(sort)).replace(/_/g, '-')}]]`;
 
-	if (!meta.config['feeds:disableRSS']) {
+
+	if (isRssEnabled) {
 		categoryData.rssFeedUrl = `${url}/category/${categoryData.cid}.rss`;
 		if (req.loggedIn) {
 			categoryData.rssFeedUrl += `?uid=${req.uid}&token=${rssToken}`;
@@ -157,6 +162,7 @@ categoryController.get = async function (req, res, next) {
 
 	res.render('category', categoryData);
 };
+
 
 async function buildBreadcrumbs(req, categoryData) {
 	const breadcrumbs = [
