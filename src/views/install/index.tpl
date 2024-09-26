@@ -28,6 +28,7 @@
 			</div>
 		</div>
 	</nav>
+
 	{{{ if !installing }}}
 	<div class="container {{{ if success }}}hide{{{ end }}}">
 		<p>
@@ -86,8 +87,6 @@
 					<div class="col-sm-5 form-text" data-help="Please confirm your password."></div>
 				</div>
 			</div>
-
-
 
 			{{{ if !skipDatabaseSetup }}}
 			<div class="database mb-3">
@@ -157,5 +156,6 @@
 		</div>
 		{{{ end }}}
 	</div>
+
 </body>
 </html>
