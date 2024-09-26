@@ -14,11 +14,18 @@ const privileges = require('../privileges');
 module.exports = function (Posts) {
 	Posts.create = async function (data) {
 		// This is an internal method, consider using Topics.reply instead
+		console.log(data);
 		const { uid } = data;
 		const { tid } = data;
 		const content = data.content.toString();
 		const timestamp = data.timestamp || Date.now();
 		const isMain = data.isMain || false;
+		const isAnonymous = data || false;
+
+		// Check if post is anonymous
+		if (isAnonymous) {
+			uid = 0; // Set uid to 0 for anonymous posts
+		}
 
 		if (!uid && parseInt(uid, 10) !== 0) {
 			throw new Error('[[error:invalid-uid]]');
@@ -35,6 +42,7 @@ module.exports = function (Posts) {
 			tid: tid,
 			content: content,
 			timestamp: timestamp,
+			isAnonymous: isAnonymous,
 		};
 
 		if (data.toPid) {

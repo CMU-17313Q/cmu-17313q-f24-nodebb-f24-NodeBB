@@ -131,6 +131,12 @@ module.exports = function (Topics) {
 
 		postData.forEach((postObj, i) => {
 			if (postObj) {
+				//to make the user anonymous
+				if (postObj.isAnonymous) {
+					postObj.user = { displayname: 'Anonymous' };
+				} else {
+					postObj.user = postObj.uid ? userData[postObj.uid] : { ...userData[postObj.uid] };
+				}
 				postObj.user = postObj.uid ? userData[postObj.uid] : { ...userData[postObj.uid] };
 				postObj.editor = postObj.editor ? editors[postObj.editor] : null;
 				postObj.bookmarked = bookmarks[i];
