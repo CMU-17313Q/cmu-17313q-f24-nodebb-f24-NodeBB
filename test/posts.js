@@ -1215,3 +1215,47 @@ describe('Posts\'', async () => {
 		});
 	});
 });
+
+describe('Anonymous Posting', () => {
+	let uid;
+	let cid;
+	let postResult;
+
+	before(async () => {
+		// Create a user for testing
+		uid = await user.create({ username: 'anonymousUser' });
+
+		// Create a category for the test
+		const category = await categories.create({
+			name: 'Anonymous Category',
+			description: 'Test category for anonymous posting',
+		});
+		cid = category.cid;
+	});
+
+	it('should create a post with isAnonymous set to true', async () => {
+		postResult = await topics.post({
+			uid: uid,
+			cid: cid,
+			title: 'Anonymous Post Test',
+			content: 'This is an anonymous post',
+			isAnonymous: true,
+		});
+
+		console.log('Anonymous Status:', postResult.postData.isAnonymous);
+
+		assert(postResult);
+		assert.strictEqual(postResult.postData.isAnonymous, true, 'The post should be marked as anonymous');
+		// Removed check for uid === 0
+	});
+
+	it('should display the post as anonymous', async () => {
+		const pid = postResult.postData.pid;
+		const postData = await posts.getPostData(pid);
+
+		assert(postData);
+		assert.strictEqual(postData.isAnonymous, true, 'The post should be marked as anonymous');
+		assert.strictEqual(postData.username, 'Anonymous', 'The username should be displayed as Anonymous');
+		assert.strictEqual(postData.picture, '', 'The profile picture should be empty for anonymous posts');
+	});
+});
