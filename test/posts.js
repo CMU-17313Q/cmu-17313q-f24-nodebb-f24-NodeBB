@@ -1242,10 +1242,24 @@ describe('Anonymous Posting', () => {
 			isAnonymous: true,
 		});
 
-		console.log('Anonymous Status:', postResult.postData.isAnonymous);
-
 		assert(postResult);
 		assert.strictEqual(postResult.postData.anonymous, true, 'The post should be marked as anonymous');
 		// Removed check for uid === 0
 	});
+
+	it('should create a post with isAnonymous set to false', async () => {
+		postResult = await topics.post({
+			uid: uid,
+			cid: cid,
+			title: 'Anonymous Post Test',
+			content: 'This is an anonymous post',
+			isAnonymous: false,
+		});
+
+		assert(postResult);
+		assert.strictEqual(postResult.postData.anonymous, false, 'The post should be marked as anonymous');
+		// Removed check for uid === 0
+	});
+
+
 });
