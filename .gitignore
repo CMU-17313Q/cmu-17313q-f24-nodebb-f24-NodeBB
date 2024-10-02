@@ -1,7 +1,8 @@
 dist/
 yarn.lock
 npm-debug.log
-node_modules/
+node_modules/*
+!node_modules/nodebb-plugin-composer-default
 sftp-config.json
 config.json
 jsconfig.json
@@ -66,7 +67,7 @@ coverage
 test/files/normalise.jpg.png
 test/files/normalise-resized.jpg
 package-lock.json
-/package.json
+#/package.json
 *.mongodb
 link-plugins.sh
 test.sh

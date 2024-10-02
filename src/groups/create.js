@@ -1,3 +1,4 @@
+
 'use strict';
 
 const meta = require('../meta');
@@ -8,16 +9,11 @@ const db = require('../database');
 module.exports = function (Groups) {
 	Groups.create = async function (data) {
 		const isSystem = isSystemGroup(data);
-		const timestamp = data.timestamp || Date.now();
-		let disableJoinRequests = parseInt(data.disableJoinRequests, 10) === 1 ? 1 : 0;
-		if (data.name === 'administrators') {
-			disableJoinRequests = 1;
-		}
+		const timestamp = getTimestamp(data);
+		const disableJoinRequests = getDisableJoinRequests(data);
 		const disableLeave = parseInt(data.disableLeave, 10) === 1 ? 1 : 0;
 		const isHidden = parseInt(data.hidden, 10) === 1;
-
 		Groups.validateGroupName(data.name);
-
 		const [exists, privGroupExists] = await Promise.all([
 			meta.userOrGroupExists(data.name),
 			privilegeGroupExists(data.name),
@@ -25,7 +21,7 @@ module.exports = function (Groups) {
 		if (exists || privGroupExists) {
 			throw new Error('[[error:group-already-exists]]');
 		}
-
+		console.log('sarra : refactored code executed');
 		const memberCount = data.hasOwnProperty('ownerUid') ? 1 : 0;
 		const isPrivate = data.hasOwnProperty('private') && data.private !== undefined ? parseInt(data.private, 10) === 1 : true;
 		let groupData = {
@@ -69,7 +65,15 @@ module.exports = function (Groups) {
 		plugins.hooks.fire('action:group.create', { group: groupData });
 		return groupData;
 	};
-
+	function getTimestamp(data) {
+		return data.timestamp || Date.now();
+	}
+	function getDisableJoinRequests(data) {
+		if (data.name === 'administrators') {
+			return 1;
+		}
+		return parseInt(data.disableJoinRequests, 10) === 1 ? 1 : 0;
+	}
 	function isSystemGroup(data) {
 		return data.system === true || parseInt(data.system, 10) === 1 ||
 			Groups.systemGroups.includes(data.name) ||
