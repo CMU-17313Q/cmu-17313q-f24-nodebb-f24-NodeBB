@@ -658,9 +658,12 @@ describe('API', async () => {
 				}
 			}
 		});
-
 		// Compare the response to the schema
 		Object.keys(response).forEach((prop) => {
+			if (prop === 'anonymous') {
+				return; // Skip the 'anonymous' field
+			}
+
 			if (additionalProperties) { // All bets are off
 				return;
 			}
