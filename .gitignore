@@ -1,9 +1,6 @@
-dist/
 yarn.lock
 npm-debug.log
 
-node_modules/*
-!node_modules/nodebb-plugin-composer-default
 sftp-config.json
 config.json
 jsconfig.json
@@ -26,6 +23,8 @@ feeds/recent.rss
 logs/
 
 pidfile
+# Ignore Redis dump file
+dump.rdb
 
 # templates
 /public/templates

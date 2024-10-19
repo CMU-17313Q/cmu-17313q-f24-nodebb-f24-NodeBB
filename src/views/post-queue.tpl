@@ -78,6 +78,7 @@
 						<div class="col-lg-2 col-12">
 							<strong>[[post-queue:user]]</strong>
 							<div>
+							{{{ else }}}
 								{{{ if posts.user.userslug}}}
 								<a href="{config.relative_path}/uid/{posts.user.uid}">{buildAvatar(posts.user, "24px", true, "not-responsive")} {posts.user.username}</a>
 								{{{ else }}}
