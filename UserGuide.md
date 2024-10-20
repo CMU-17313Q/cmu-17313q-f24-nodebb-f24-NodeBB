@@ -14,17 +14,23 @@ Instructors can now mark specific answers as "Instructor-Approved." This feature
 
 ### How to Use
 1. **For Instructors:**
+Log in using the following:
+- Username: Instructor
+- Password: password
    - Navigate to the post containing the answers.
    - Hover over the answer you want to approve.
    - toggle on the **"Mark as Approved"** button that appears.
    - The answer will now be highlighted, indicating that it has been approved by an instructor.
 
 2. **For Students:**
+Log in using the following:
+- Username: Student
+- Password: password
    - Look for answers marked with the "Instructor-Approved" label.
    - Engage with these answers confidently, knowing they are verified.
 
 ### Testing
-Automated tests for this feature are located in the `tests/instructorApproval.test.js` file. The tests cover:
+Automated tests for this feature are located in the `test/newImplementedFeatures/instructorApproved.js` file. The tests cover:
 - Approval of an answer by an instructor.
 - Verification that approved answers are highlighted appropriately.
 
@@ -41,7 +47,7 @@ Students can now share posts anonymously, allowing them to ask questions or shar
    - Submit your post as usual. Your identity will remain hidden from other users.
 
 ### Testing
-Automated tests for this feature can be found in the `tests/anonymity.test.js` file. The tests validate:
+Automated tests for this feature can be found in the `test/newImplementedFeatures/anonymousFeature.js` file. The tests validate:
 - Successful submission of an anonymous post.
 - Proper display of anonymous posts without revealing the user’s identity.
 
@@ -59,7 +65,7 @@ Each post now includes an estimated reading time, helping students decide whethe
    - This implementation can be seen when you click on discussion and then click on the post. Within the post, you can see the estimated reading time for each of the posts.
 
 ### Testing
-Automated tests for this feature are located in the `tests/readingTime.test.js` file. The tests ensure:
+Automated tests for this feature are located in the `test/newImplementedFeatures/EstimatedTimeForReadingPost.js` file. The tests ensure:
 - Accurate calculation of estimated reading time based on the post's word count.
 - Proper display of reading time in the post view.
 
