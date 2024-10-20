@@ -70,6 +70,8 @@
 					{{{ end }}}
 					<strong>{{{ if posts.data.tid }}}[[post-queue:reply]]{{{ else }}}[[post-queue:topic]]{{{ end }}}</strong>
 					<span class="timeago float-end" title={posts.data.timestampISO}></span>
+					<!-- Add the reading time -->
+					<span id="reading-time-{posts.data.id}" class="text-muted"></span>
 				</div>
 				<div class="card-body">
 					<div class="row">
@@ -129,7 +131,7 @@
 						<button class="btn btn-danger btn-sm" data-action="reject"><i class="fa fa-fw fa-times"></i> [[post-queue:remove]]</button>
 						{{{ end }}}
 					</div>
-				</div>
+				</div>ekaterina@basira.life
 			</div>
 			{{{ end }}}
 		</div>
