@@ -37,7 +37,7 @@ Students can now share posts anonymously, allowing them to ask questions or shar
 
 ### How to Use
 1. **For Students:**
-   - When creating a new post, check the **"Post Anonymously"** option. you can choose to be annonymous to all, none or your students.
+   - When creating a new post, check the **"Post Anonymously"** option. you can choose to be anonymous to all, none or your students.
    - Submit your post as usual. Your identity will remain hidden from other users.
 
 ### Testing
@@ -56,6 +56,7 @@ Each post now includes an estimated reading time, helping students decide whethe
 1. **For Students:**
    - When viewing a post, look for the estimated reading time displayed at the top right of the post.
    - Use this information to gauge if you can read the content within your available time.
+   - This implementation can be seen when you click on discussion and then click on the post. Within the post, you can see the estimated reading time for each of the posts.
 
 ### Testing
 Automated tests for this feature are located in the `tests/readingTime.test.js` file. The tests ensure:
