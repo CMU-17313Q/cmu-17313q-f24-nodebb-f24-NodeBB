@@ -1,6 +1,9 @@
 name: Lint and test
 
 on:
+  push:
+    branches:
+      - f24
   pull_request:
     branches:
       - f24

@@ -70,12 +70,15 @@
 					{{{ end }}}
 					<strong>{{{ if posts.data.tid }}}[[post-queue:reply]]{{{ else }}}[[post-queue:topic]]{{{ end }}}</strong>
 					<span class="timeago float-end" title={posts.data.timestampISO}></span>
+					<!-- Add the reading time -->
+					<span id="reading-time-{posts.data.id}" class="text-muted"></span>
 				</div>
 				<div class="card-body">
 					<div class="row">
 						<div class="col-lg-2 col-12">
 							<strong>[[post-queue:user]]</strong>
 							<div>
+							{{{ else }}}
 								{{{ if posts.user.userslug}}}
 								<a href="{config.relative_path}/uid/{posts.user.uid}">{buildAvatar(posts.user, "24px", true, "not-responsive")} {posts.user.username}</a>
 								{{{ else }}}
@@ -128,7 +131,7 @@
 						<button class="btn btn-danger btn-sm" data-action="reject"><i class="fa fa-fw fa-times"></i> [[post-queue:remove]]</button>
 						{{{ end }}}
 					</div>
-				</div>
+				</div>ekaterina@basira.life
 			</div>
 			{{{ end }}}
 		</div>

@@ -150,11 +150,29 @@ module.exports = function (Topics) {
 		const filterCids = params.cid && params.cid.map(cid => parseInt(cid, 10));
 		const filterTags = params.tag && params.tag.map(tag => String(tag));
 
+		function areTagsAllowed(topic, filterTags) {
+			if (!filterTags) {
+				return true;
+			}
+			for (const tag of filterTags) {
+				if (!topic.tags.find(topicTag => topicTag.value === tag)) {
+					return false;
+				}
+			}
+			return true;
+		}
+
+		function shouldIncludeTopic(topic, filterCids, filterTags, blockedUids) {
+			if (!topic || !topic.cid || blockedUids.includes(topic.uid)) {
+				return false;
+			}
+			if (filterCids && !filterCids.includes(topic.cid)) {
+				return false;
+			}
+			return areTagsAllowed(topic, filterTags);
+		}
 		topicData.forEach((topic) => {
-			if (topic && topic.cid &&
-				(!filterCids || filterCids.includes(topic.cid)) &&
-				(!filterTags || filterTags.every(tag => topic.tags.find(topicTag => topicTag.value === tag))) &&
-				!blockedUids.includes(topic.uid)) {
+			if (shouldIncludeTopic(topic, filterCids, filterTags, blockedUids)) {
 				if (isTopicsFollowed[topic.tid] ||
 					[categories.watchStates.watching, categories.watchStates.tracking].includes(userCidState[topic.cid])) {
 					tidsByFilter[''].push(topic.tid);
