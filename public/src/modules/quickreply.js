@@ -50,6 +50,62 @@ define('quickreply', [
 			},
 		});
 
+		const style = `
+		<style>
+		  	.quickreply-suggested-responses {
+				margin-top: 5px;
+				display: flex;
+				flex-wrap: wrap;
+		  	}
+			.quickreply-suggested-response {
+          		display: inline-block;
+          		padding: 5px 10px;
+          		margin-right: 5px;
+          		margin-bottom: 5px;
+          		background-color: #e0e7ff;
+          		border-radius: 5px;
+          		cursor: pointer;
+          		color: #1a237e;
+        	}
+	        .quickreply-suggested-response:hover {
+				background-color: #c5cae9;
+			}
+		</style>`;
+
+		$('head').append(style);
+
+		const suggestedResponsesHtml = `
+		<div class="quickreply-suggested-responses">
+		  <span class="quickreply-suggested-response">Thank you!</span>
+		  <span class="quickreply-suggested-response">Makes sense.</span>
+		  <span class="quickreply-suggested-response">Sounds Good!</span>
+		  <span class="quickreply-suggested-response">Could you clarify further?</span>
+		</div>
+	  `;
+
+		const quickReplyContainer = $('[component="topic/quickreply/container"]');
+		const quickReplyMessage = quickReplyContainer.find('.quickreply-message');
+
+		quickReplyMessage.find('textarea').after(suggestedResponsesHtml);
+
+		$(document).on('click', '.quickreply-suggested-response', function () {
+			const buttonText = $(this)['0'].innerText;
+			const textarea = components.get('topic/quickreply/text');
+
+			const currentText = textarea.val();
+
+			if (!currentText.trim()) {
+				textarea.val(buttonText);
+			} else {
+				textarea.val(currentText + '\n' + buttonText);
+			}
+
+			textarea[0].selectionStart = textarea.val().length;
+			textarea[0].selectionEnd = textarea.val().length;
+
+			textarea.trigger('input');
+		});
+
 		let ready = true;
 		components.get('topic/quickreply/button').on('click', function (e) {
 			e.preventDefault();

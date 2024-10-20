@@ -60,8 +60,8 @@ define('forum/chats', [
 		}
 
 		recentChats.init();
-
 		Chats.addEventListeners();
+
 		Chats.setActive(ajaxify.data.roomId);
 
 		if (env === 'md' || env === 'lg' || env === 'xl' || env === 'xxl') {
@@ -114,7 +114,19 @@ define('forum/chats', [
 			uploadFormEl: $('[component="chat/upload"]'),
 			uploadBtnEl: $('[component="chat/upload/button"]'),
 			inputEl: $('[component="chat/input"]'),
+
 		});
+
+		document.querySelectorAll('.emoji-btn').forEach((button) => {
+			button.addEventListener('click', () => {
+				console.log('Emoji button clicked');
+			});
+		});
+
+
+
+
+
 
 		$('[data-action="close"]').on('click', function () {
 			Chats.switchChat();

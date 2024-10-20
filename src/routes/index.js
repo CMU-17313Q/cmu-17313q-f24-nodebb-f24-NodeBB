@@ -8,8 +8,9 @@ const express = require('express');
 const meta = require('../meta');
 const controllers = require('../controllers');
 const controllerHelpers = require('../controllers/helpers');
-const plugins = require('../plugins');
 
+
+const plugins = require('../plugins');
 const authRoutes = require('./authentication');
 const writeRoutes = require('./write');
 const helpers = require('./helpers');
@@ -168,7 +169,6 @@ function addCoreRoutes(app, router, middleware, mounts) {
 	}
 
 	app.use(middleware.privateUploads);
-
 	const statics = [
 		{ route: '/assets', path: path.join(__dirname, '../../build/public') },
 		{ route: '/assets', path: path.join(__dirname, '../../public') },

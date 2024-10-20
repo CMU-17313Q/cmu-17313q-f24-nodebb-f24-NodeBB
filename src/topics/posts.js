@@ -4,13 +4,14 @@
 const _ = require('lodash');
 const validator = require('validator');
 const nconf = require('nconf');
-
+// const { post } = require('jquery');
 const db = require('../database');
 const user = require('../user');
 const posts = require('../posts');
 const meta = require('../meta');
 const plugins = require('../plugins');
 const utils = require('../utils');
+
 
 const backlinkRegex = new RegExp(`(?:${nconf.get('url').replace('/', '\\/')}|\b|\\s)\\/topic\\/(\\d+)(?:\\/\\w+)?`, 'g');
 
@@ -144,6 +145,19 @@ module.exports = function (Topics) {
 				if (meta.config.allowGuestHandles && postObj.uid === 0 && postObj.handle) {
 					postObj.user.username = validator.escape(String(postObj.handle));
 					postObj.user.displayname = postObj.user.username;
+				}
+
+				if (postObj.anon === 'true') {
+					postObj.user = structuredClone(postObj.user);
+					postObj.user.username = 'Anonymous';
+					postObj.user.displayname = 'Anonymous';
+					postObj.user.userslug = 'Anonymous';
+					postObj.user.status = 'away';
+					postObj.user.postcount = 0;
+					postObj.user.topiccount = 0;
+					postObj.user.uid = -1;
+					postObj.user['icon:text'] = '*';
+					postObj.user['icon:bgColor'] = '#aaaaaa';
 				}
 			}
 		});

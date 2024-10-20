@@ -18,6 +18,7 @@ postsController.redirectToPost = async function (req, res, next) {
 		privileges.posts.can('topics:read', pid, req.uid),
 		posts.generatePostPath(pid, req.uid),
 	]);
+
 	if (!path) {
 		return next();
 	}

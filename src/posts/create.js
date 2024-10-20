@@ -1,7 +1,8 @@
 'use strict';
 
 const _ = require('lodash');
-
+const fs = require('fs');
+const path = require('path');
 const meta = require('../meta');
 const db = require('../database');
 const plugins = require('../plugins');
@@ -10,13 +11,66 @@ const topics = require('../topics');
 const categories = require('../categories');
 const groups = require('../groups');
 const privileges = require('../privileges');
+// const document = require('../../node_modules/nodebb-plugin-composer-default/static/lib/composer');
 
+
+// using a set to store bad words for faster search
+let badWords = new Set();
+function loadBadWords() {
+	const filePath = path.join(__dirname, '../bad-words.txt');
+	try {
+		const data = fs.readFileSync(filePath, 'utf8');
+		badWords = new Set(data.split(/\r?\n/));
+	} catch (err) {
+		console.error('Error while reading bad words file:', err);
+	}
+}
+
+loadBadWords();
+
+
+function censorBadWords(content) {
+	// console.log('Checking if the words in the post are in the dictionary of bad words');
+	let censoredContent = '';
+	const words = content.split(/\s+/);// Split content into individual words
+	for (const word of words) {
+		const cleanWord = word.replace(/[^\w\s]/gi, '');// Remove special characters before checking
+		if (badWords.has(cleanWord.toLowerCase())) {
+			// Replace bad word with asterisks matching its length
+			const asterisks = '*'.repeat(cleanWord.length);
+			censoredContent += `${asterisks} `;
+		} else {
+			censoredContent += `${word} `;// Add the original word if it's not a bad word
+		}
+	}
+	return censoredContent.trim();
+}
+/*
+function checkifBadWord(content) {
+	console.log('Checking if the words in the post are in the dictionary of bad words');
+	const words = content.split(/\s+/); // Split content of the post into words
+	console.log('words in the content: ', words);
+	let found = false;
+
+	for (const word of words) {
+		if (badWords.has(word.toLowerCase())) {
+			console.log('The word', word, 'is a bad word');
+			found = true;
+		} else {
+			console.log('The word', word, 'is not a bad word');
+		}
+	}
+	return found;
+}
+*/
 module.exports = function (Posts) {
 	Posts.create = async function (data) {
 		// This is an internal method, consider using Topics.reply instead
 		const { uid } = data;
 		const { tid } = data;
-		const content = data.content.toString();
+		// console.log('this is the file responsible for creating a post');
+		// eslint-disable-next-line prefer-const
+		let content = data.content.toString();
 		const timestamp = data.timestamp || Date.now();
 		const isMain = data.isMain || false;
 
@@ -27,14 +81,18 @@ module.exports = function (Posts) {
 		if (data.toPid) {
 			await checkToPid(data.toPid, uid);
 		}
+		// console.log('Content before censoring bad words: ', content);
+		data.content = censorBadWords(content);// Only replace bad words, leave the rest intact
+		// console.log('Content after censoring bad words: ', data.content);
 
 		const pid = await db.incrObjectField('global', 'nextPid');
 		let postData = {
 			pid: pid,
 			uid: uid,
 			tid: tid,
-			content: content,
+			content: data.content,
 			timestamp: timestamp,
+			anon: data.isAnonymous,
 		};
 
 		if (data.toPid) {
@@ -71,6 +129,7 @@ module.exports = function (Posts) {
 		return result.post;
 	};
 
+
 	async function addReplyTo(postData, timestamp) {
 		if (!postData.toPid) {
 			return;
@@ -91,4 +150,9 @@ module.exports = function (Posts) {
 			throw new Error('[[error:invalid-pid]]');
 		}
 	}
+};
+
+module.exports.utils = {
+	loadBadWords,
+	censorBadWords,
 };

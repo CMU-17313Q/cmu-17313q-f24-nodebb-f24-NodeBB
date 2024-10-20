@@ -125,3 +125,112 @@ body.page-user-chats {
 		display: none!important;
 	}
 }
+/* Styling for the reaction container */
+.reaction-box {
+    display: flex;
+    gap: 8px; /* Increased gap for spacing between emojis */
+    margin-top: 10px; /* Adjusted the margin to provide more spacing from the message */
+    border: 2px solid #28a745; /* Green border */
+    border-radius: 15px; /* Rounded corners for the container */
+    padding: 10px; /* Padding for the emoji box */
+    background-color: #f9f9f9; /* Light background color */
+}
+
+/* Styling for each emoji button */
+.emoji-btn {
+    background-color: #f0f0f0; /* Lighter background color for buttons */
+    border: 2px solid #28a745; /* Green border around each emoji button */
+    border-radius: 15px; /* Rounded corners for the buttons */
+    padding: 4px 12px; /* Padding to make the buttons larger */
+    cursor: pointer;
+    font-size: 16px; /* Slightly larger font for the emoji text */
+    display: flex;
+    align-items: center;
+    gap: 6px; /* Increased space between emoji and count */
+}
+
+.emoji-btn:hover {
+    background-color: #d9d9d9; /* Hover color for the emoji button */
+}
+
+.emoji-btn .emoji {
+    margin-right: 6px; /* Adjusted space between emoji and count */
+}
+
+/* Additional styling for the emoji reaction count */
+.emoji-btn .count {
+    font-weight: bold;
+    font-size: 14px; /* Adjust the count size */
+}
+
+/* Subtle effect when a user has reacted */
+.emoji-btn.user-reacted {
+    background-color: #c9f0c9; /* Subtle color change for reacted emojis */
+}
+
+/* Styling for the message wrapper */
+.message-body-wrapper {
+    position: relative;
+    padding-bottom: 20px; /* Extra padding for better spacing */
+}
+
+/* Styling for message reactions count bubble */
+.message-reactions-count {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    margin-right: 10px;
+    margin-bottom: 5px;
+}
+
+.reactions-bubble {
+    background-color: #f7f7f7; /* Subtle background for the bubble */
+    border-radius: 20px; /* Rounded bubble shape */
+    padding: 6px 10px; /* Adjusted padding */
+    display: flex;
+    align-items: center;
+}
+
+.reaction-message {
+    background-color: #827c7c;
+    font-style: italic;
+    padding: 8px; /* Increased padding */
+    border-radius: 10px; /* More rounded edges */
+}
+
+.emoji-btn {
+    transition: transform 0.2s ease-in-out;
+}
+
+.emoji-btn:hover {
+    transform: scale(1.2); /* Slightly enlarges the button */
+}
+
+.emoji-btn:active {
+    transform: scale(0.9); /* Compresses slightly on click */
+}
+
+.emoji-btn .count {
+    font-weight: bold;
+}
+
+.emoji-btn[data-count="10"] {
+    background-color: #ffeb3b; /* Highlight popular reactions */
+}
+
+.emoji-btn[data-count="50"] {
+    background-color: #ff5722;
+    animation: pulse 1s infinite; /* Adds a pulse effect */
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+.reaction-box .count {
+    font-family: 'Roboto', sans-serif; /* Use a custom font */
+    font-weight: 700; /* Bold count */
+    color: #4CAF50; /* Make the count green */
+}

@@ -9,6 +9,7 @@ const util = require('util');
 
 const sleep = util.promisify(setTimeout);
 
+const fs = require('fs');
 const db = require('./mocks/databasemock');
 const topics = require('../src/topics');
 const posts = require('../src/posts');
@@ -24,6 +25,7 @@ const file = require('../src/file');
 const helpers = require('./helpers');
 const utils = require('../src/utils');
 const request = require('../src/request');
+const { loadBadWords, censorBadWords } = require('../src/posts/create').utils;
 
 describe('Post\'s', () => {
 	let voterUid;
@@ -49,6 +51,44 @@ describe('Post\'s', () => {
 			content: 'The content of test topic',
 		}));
 		await groups.join('Global Moderators', globalModUid);
+	});
+
+	describe('censorBadWords', () => {
+		before(() => {
+			// Mock the fs.readFileSync function to return a list of bad words
+			const originalReadFileSync = fs.readFileSync;
+			fs.readFileSync = function (filePath, encoding, ...args) {
+				if (filePath === path.join(__dirname, '../bad-words.txt') && encoding === 'utf8') {
+					return 'badword1\nbadword2';
+				}
+				return originalReadFileSync.apply(this, [filePath, encoding, ...args]);
+			};
+			loadBadWords();
+		});
+
+
+		after(() => {
+			// Restore the original fs.readFileSync function
+			delete require.cache[require.resolve('fs')];
+		});
+
+		it('should handle content with special characters', () => {
+			const content = 'This is a asshole and fuck! test';
+			const censoredContent = censorBadWords(content);
+			assert.strictEqual(censoredContent, 'This is a ******* and **** test');
+		});
+
+		it('should handle mixed case bad words', () => {
+			const content = 'This is a bitch and BITCH test';
+			const censoredContent = censorBadWords(content);
+			assert.strictEqual(censoredContent, 'This is a ***** and ***** test');
+		});
+
+		it('should handle content with no bad words', () => {
+			const content = 'This is a perfectly clean test';
+			const censoredContent = censorBadWords(content);
+			assert.strictEqual(censoredContent, 'This is a perfectly clean test');
+		});
 	});
 
 	it('should update category teaser properly', async () => {

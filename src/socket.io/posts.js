@@ -21,6 +21,7 @@ const SocketPosts = module.exports;
 require('./posts/votes')(SocketPosts);
 require('./posts/tools')(SocketPosts);
 
+
 SocketPosts.getRawPost = async function (socket, pid) {
 	sockets.warnDeprecated(socket, 'GET /api/v3/posts/:pid/raw');
 

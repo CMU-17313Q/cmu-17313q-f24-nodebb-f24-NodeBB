@@ -1,0 +1,9 @@
+Hi {username},
+
+{postAuthor} has posted a new note:
+
+{postContent}
+
+Click here to view the post: {postLink}
+
+Thanks for being part of the discussion!
