@@ -232,11 +232,16 @@ async function editPostTPL() {
 					<i class="fa fa-check-circle"></i>
 					<span class="text-muted">Instructor Approved</span>
 				</span>
+				{{{ else }}}
+				 <span class="verified-checkmark text-success">
+					<i class="fa fa-uncheck-circle"></i>
+					<span class="text-muted">Instructor Unapproved</span>
+				</span>
 				{{{ end }}}`;
 
 		// Define the string to add at line 117
 		const stringToAddAtLine117 = `<button id="post-toggle-button-{./pid}" component="post/toggle-button" class="btn-ghost-sm" data-toggle="post-toggle" data-pid="{./pid}" data-csrf-token="{config.csrf_token}" > 
-			<i class="fa fa-fw fa-toggle-on text-primary"></i>
+			<i id="toggle-i-{./pid}" class="fa fa-fw fa-toggle-off text-primary"></i>
 			<span id="toggle-span-{./pid}" class="text-muted">Approve Post</span>
 		</button>
 		<script>
@@ -245,10 +250,12 @@ async function editPostTPL() {
 				const pid = $this.attr('data-pid'); // get the post ID
 				const buttonId = '#post-toggle-button-' + pid; // build button ID
 				const spanId = '#toggle-span-' + pid; // build span ID
+				const toggleId = '#toggle-i-' + pid;  // build toggle ID
 				const csrfToken = $this.attr('data-csrf-token');
 				// Cache jQuery selections
 				const $button = $(buttonId);
 				const $span = $(spanId);
+				const $toggle = $(toggleId);
 
 				// Check if the button and span exist
 				if (!$button.length || !$span.length) {
@@ -256,14 +263,13 @@ async function editPostTPL() {
 					return; // Exit if elements are not found
 				}
 
-				const isApproved = $button.find('i').hasClass('fa-toggle-on') ? false : true; // toggle state
+				const isApproved = $toggle.hasClass('fa-toggle-on') ? false : true; // toggle state
 
 				// Send the approval status to the server
 				$.ajax({
 					url: '/api/v3/posts/' + pid + '/approve',
 					method: 'PUT',
 					data: { 
-						isApproved: isApproved,
 						CSRF: csrfToken
 					},
 					headers: {
@@ -272,19 +278,15 @@ async function editPostTPL() {
 					},
 					success: function(response) {
 						// Handle success (update UI accordingly)
-						console.log("Approving successful. isApproved: ")
-						console.log(isApproved);
-						console.log("Response:");
+						// console.log("Approving successful. isApproved: ")
+						// console.log(isApproved);
+						// console.log("Response:");
 						console.log(response);
-						console.log("referring");
-						console.log(response.isApproved);
-						console.log("referring2");
-						console.log(response["isApproved"]);
-						if (response.isApproved) {
-							$button.find('i').removeClass('fa-toggle-on').addClass('fa-toggle-off');
+						if (isApproved) {
+							$toggle.removeClass('fa-toggle-off').addClass('fa-toggle-on');
 							$span.text('Disapprove Post');
 						} else {
-							$button.find('i').removeClass('fa-toggle-off').addClass('fa-toggle-on');
+							$toggle.removeClass('fa-toggle-on').addClass('fa-toggle-off');
 							$span.text('Approve Post');
 						}
 					},
