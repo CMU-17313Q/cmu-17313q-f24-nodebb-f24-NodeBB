@@ -13,34 +13,11 @@ const url = nconf.get('url');
 const relative_path = nconf.get('relative_path');
 const upload_url = nconf.get('upload_url');
 
+console.log('Deema');
 Tags.parse = async (req, data, meta, link) => {
 	const isAPI = req.res && req.res.locals && req.res.locals.isAPI;
-
-	// Meta tags
-	const defaultTags = isAPI ? [] : [{
-		name: 'viewport',
-		content: 'width=device-width, initial-scale=1.0',
-	}, {
-		name: 'content-type',
-		content: 'text/html; charset=UTF-8',
-		noEscape: true,
-	}, {
-		name: 'apple-mobile-web-app-capable',
-		content: 'yes',
-	}, {
-		name: 'mobile-web-app-capable',
-		content: 'yes',
-	}, {
-		property: 'og:site_name',
-		content: Meta.config.title || 'NodeBB',
-	}, {
-		name: 'msapplication-badge',
-		content: `frequency=30; polling-uri=${url}/sitemap.xml`,
-		noEscape: true,
-	}, {
-		name: 'theme-color',
-		content: Meta.config.themeColor || '#ffffff',
-	}];
+	const defaultTags = getDefaultTags(isAPI);
+	const defaultLinks = getDefaultLinks(isAPI);
 
 	if (Meta.config.keywords && !isAPI) {
 		defaultTags.push({
@@ -57,19 +34,9 @@ Tags.parse = async (req, data, meta, link) => {
 		});
 	}
 
-	const faviconPath = `${relative_path}/assets/uploads/system/favicon.ico`;
-	const cacheBuster = `${Meta.config['cache-buster'] ? `?${Meta.config['cache-buster']}` : ''}`;
-
-	// Link Tags
-	const defaultLinks = isAPI ? [] : [{
-		rel: 'icon',
-		type: 'image/x-icon',
-		href: `${faviconPath}${cacheBuster}`,
-	}, {
-		rel: 'manifest',
-		href: `${relative_path}/manifest.webmanifest`,
-		crossorigin: `use-credentials`,
-	}];
+	if (!isAPI) {
+		addTouchIcons(defaultLinks);
+	}
 
 	if (plugins.hooks.hasListeners('filter:search.query') && !isAPI) {
 		defaultLinks.push({
@@ -80,57 +47,79 @@ Tags.parse = async (req, data, meta, link) => {
 		});
 	}
 
-	if (!isAPI) {
-		addTouchIcons(defaultLinks);
-	}
-
-	const results = await utils.promiseParallel({
-		tags: plugins.hooks.fire('filter:meta.getMetaTags', { req: req, data: data, tags: defaultTags }),
-		links: plugins.hooks.fire('filter:meta.getLinkTags', { req: req, data: data, links: defaultLinks }),
-	});
-
-	meta = results.tags.tags.concat(meta || []).map((tag) => {
-		if (!tag || typeof tag.content !== 'string') {
-			winston.warn('Invalid meta tag. ', tag);
-			return tag;
-		}
-
-		if (!tag.noEscape) {
-			const attributes = Object.keys(tag);
-			attributes.forEach((attr) => {
-				tag[attr] = utils.escapeHTML(String(tag[attr]));
-			});
-		}
-
-		return tag;
-	});
+	const results = await getMetaAndLinks(req, data, defaultTags, defaultLinks);
+	meta = processMetaTags(results.tags.tags.concat(meta || []));
+	link = processLinkTags(results.links.links.concat(link || []), isAPI);
 
 	await addSiteOGImage(meta);
 
 	addIfNotExists(meta, 'property', 'og:title', Meta.config.title || 'NodeBB');
-	const ogUrl = url + (req.originalUrl !== '/' ? stripRelativePath(req.originalUrl) : '');
-	addIfNotExists(meta, 'property', 'og:url', ogUrl);
+	addIfNotExists(meta, 'property', 'og:url', url + (req.originalUrl !== '/' ? stripRelativePath(req.originalUrl) : ''));
 	addIfNotExists(meta, 'name', 'description', Meta.config.description);
 	addIfNotExists(meta, 'property', 'og:description', Meta.config.description);
 
-	link = results.links.links.concat(link || []);
-	if (isAPI) {
-		const whitelist = ['canonical', 'alternate', 'up'];
-		link = link.filter(link => whitelist.some(val => val === link.rel));
-	}
-	link = link.map((tag) => {
+	return { meta, link };
+};
+
+function getDefaultTags(isAPI) {
+	if (isAPI) return [];
+	return [
+		{ name: 'viewport', content: 'width=device-width, initial-scale=1.0' },
+		{ name: 'content-type', content: 'text/html; charset=UTF-8', noEscape: true },
+		{ name: 'apple-mobile-web-app-capable', content: 'yes' },
+		{ name: 'mobile-web-app-capable', content: 'yes' },
+		{ property: 'og:site_name', content: Meta.config.title || 'NodeBB' },
+		{ name: 'msapplication-badge', content: `frequency=30; polling-uri=${url}/sitemap.xml`, noEscape: true },
+		{ name: 'theme-color', content: Meta.config.themeColor || '#ffffff' },
+	];
+}
+
+function getDefaultLinks(isAPI) {
+	const faviconPath = `${relative_path}/assets/uploads/system/favicon.ico`;
+	const cacheBuster = Meta.config['cache-buster'] ? `?${Meta.config['cache-buster']}` : '';
+	if (isAPI) return [];
+	return [
+		{ rel: 'icon', type: 'image/x-icon', href: `${faviconPath}${cacheBuster}` },
+		{ rel: 'manifest', href: `${relative_path}/manifest.webmanifest`, crossorigin: 'use-credentials' },
+	];
+}
+
+async function getMetaAndLinks(req, data, defaultTags, defaultLinks) {
+	return utils.promiseParallel({
+		tags: plugins.hooks.fire('filter:meta.getMetaTags', { req, data, tags: defaultTags }),
+		links: plugins.hooks.fire('filter:meta.getLinkTags', { req, data, links: defaultLinks }),
+	});
+}
+
+function processMetaTags(tags) {
+	return tags.map((tag) => {
+		if (!tag || typeof tag.content !== 'string') {
+			winston.warn('Invalid meta tag. ', tag);
+			return tag;
+		}
 		if (!tag.noEscape) {
-			const attributes = Object.keys(tag);
-			attributes.forEach((attr) => {
+			Object.keys(tag).forEach((attr) => {
 				tag[attr] = utils.escapeHTML(String(tag[attr]));
 			});
 		}
-
 		return tag;
 	});
+}
 
-	return { meta, link };
-};
+function processLinkTags(links, isAPI) {
+	if (isAPI) {
+		const whitelist = ['canonical', 'alternate', 'up'];
+		links = links.filter(link => whitelist.includes(link.rel));
+	}
+	return links.map((tag) => {
+		if (!tag.noEscape) {
+			Object.keys(tag).forEach((attr) => {
+				tag[attr] = utils.escapeHTML(String(tag[attr]));
+			});
+		}
+		return tag;
+	});
+}
 
 function addTouchIcons(defaultLinks) {
 	if (Meta.config['brand:touchIcon']) {

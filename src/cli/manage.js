@@ -206,12 +206,15 @@ async function maintenance(toggle) {
 async function buildWrapper(targets, options) {
 	try {
 		await build.build(targets, options);
+		
 		process.exit(0);
 	} catch (err) {
 		winston.error(err.stack);
 		process.exit(1);
 	}
 }
+
+
 
 exports.build = buildWrapper;
 exports.install = install;

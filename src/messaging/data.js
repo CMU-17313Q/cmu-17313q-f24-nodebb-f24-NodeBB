@@ -80,16 +80,17 @@ module.exports = function (Messaging) {
 			// Add a spacer in between messages with time gaps between them
 			messages = messages.map((message, index) => {
 				// Compare timestamps with the previous message, and check if a spacer needs to be added
-				if (index > 0 && message.timestamp > messages[index - 1].timestamp + Messaging.newMessageCutoff) {
-					// If it's been 5 minutes, this is a new set of messages
-					message.newSet = true;
-				} else if (index > 0 && message.fromuid !== messages[index - 1].fromuid) {
-					// If the previous message was from the other person, this is also a new set
-					message.newSet = true;
-				} else if (index > 0 && messages[index - 1].system) {
-					message.newSet = true;
-				} else if (index === 0 || message.toMid) {
-					message.newSet = true;
+				// If the previous message was from the other person, this is also a new set
+				if (index > 0) {
+					// Also check if the previous message was a system message, in which case we don't add a spacer
+					// Also check if the previous message was a new set, in which case we don't add a spacer
+					// Also check if the previous message was a system message, in which case we don't add a spacer
+					// Also check if the previous message was a new set, in which case we don't add a spacer
+					if (message.timestamp > messages[index - 1].timestamp + Messaging.newMessageCutoff ||
+                        message.fromUid !== messages[index - 1].fromUid ||
+                        messages[index - 1].system) {
+						message.newSet = true;
+					}
 				}
 
 				return message;

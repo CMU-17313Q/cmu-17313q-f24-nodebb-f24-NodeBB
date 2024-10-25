@@ -38,9 +38,12 @@ module.exports = function () {
 	setupApiRoute(router, 'delete', '/:pid/diffs/:timestamp', middlewares, controllers.write.posts.deleteDiff);
 
 	setupApiRoute(router, 'get', '/:pid/replies', [middleware.assert.post], controllers.write.posts.getReplies);
+	// Add the new route for marking a post as "instructor-approved"
+	setupApiRoute(router, 'put', '/:pid/approve', [...middlewares, middleware.admin.checkPrivileges], controllers.write.posts.approve);
 
 	// Shorthand route to access post routes by topic index
 	router.all('/+byIndex/:index*?', [middleware.checkRequired.bind(null, ['tid'])], controllers.write.posts.redirectByIndex);
+	setupApiRoute(router, 'put', '/:pid/approve', [...middlewares], controllers.write.posts.approve);
 
 	return router;
 };

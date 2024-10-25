@@ -189,18 +189,153 @@ exports.build = async function (targets, options) {
 		} else {
 			winston.info('[build] Building in series mode');
 		}
-
+		await editTemplateFiles();
+		winston.info(`[build] Editing node_modules successful.`);
+		
 		const startTime = Date.now();
 		await buildTargets(targets, !series, options);
 
 		const totalTime = (Date.now() - startTime) / 1000;
 		await cacheBuster.write();
 		winston.info(`[build] Asset compilation successful. Completed in ${totalTime}sec.`);
+		
 	} catch (err) {
 		winston.error(`[build] Encountered error during build step`);
 		throw err;
 	}
+	
 };
+
+async function editTemplateFiles() {
+	// Your code to modify files in node_modules/templates
+	
+	await editPostTPL();
+	
+	console.log(chalk.bold(chalk.green("Editing node_modules/nodebb-theme-harmony/templates/partials/topic/post.tpl")));
+}
+
+const fs = require('fs').promises;
+
+async function editPostTPL() {
+	const templatePath = path.join('node_modules', 'nodebb-theme-harmony', 'templates', 'partials', 'topic', 'post.tpl');
+	
+	try {
+		// Read the template file
+		let content = await fs.readFile(templatePath, 'utf8');
+		
+		// Split the content into an array of lines
+		let lines = content.split('\n');
+		
+		// Define the string to add at line 59
+		const stringToAddAtLine59 = `{{{ if (./isApproved == "true") }}} 
+				<span class="verified-checkmark text-success">
+					<i id="toggle-checkmark-{./pid}" class="fa fa-check-circle"></i>
+					<span id="toggle-checkmark-text-{./pid}" class="text-muted">Instructor Approved </span>
+				</span>
+				{{{ else }}}
+				 <span class="verified-checkmark text-success">
+					<i id="toggle-checkmark-{./pid}" class="fa fa-times-circle-o"></i>
+					<span id="toggle-checkmark-text-{./pid}" class="text-muted">Instructor Unapproved </span>
+				</span>
+				{{{ end }}}`;
+
+		// Define the string to add at line 117
+		const stringToAddAtLine117 = `<button id="post-toggle-button-{./pid}" component="post/toggle-button" class="btn-ghost-sm" data-toggle="post-toggle" data-pid="{./pid}" data-csrf-token="{config.csrf_token}" > 
+			<i id="toggle-i-{./pid}" class="fa fa-fw {{{ if (./isApproved == "true")}}} fa-toggle-on {{{ else }}} fa-toggle-off {{{ end }}} text-primary"></i>
+			<span id="toggle-span-{./pid}" class="text-muted">{{{ if (./isApproved == "true")}}} Disapprove Post {{{ else }}} Approve Post {{{ end }}}</span>
+		</button>
+		<script>
+			$(document).on('click', '[component="post/toggle-button"]', function() {
+				const $this = $(this);
+				const pid = $this.attr('data-pid'); // get the post ID
+				const buttonId = '#post-toggle-button-' + pid; // build button ID
+				const spanId = '#toggle-span-' + pid; // build span ID
+				const toggleId = '#toggle-i-' + pid;  // build toggle ID
+				const checkmarkId = '#toggle-checkmark-' + pid
+				const checkmarkTextId = '#toggle-checkmark-text-' + pid
+				const csrfToken = $this.attr('data-csrf-token');
+				// Cache jQuery selections
+				const $button = $(buttonId);
+				const $span = $(spanId);
+				const $toggle = $(toggleId);
+				const $checkmark = $(checkmarkId);
+				const $checkmarkText = $(checkmarkTextId);
+
+				// Check if the button and span exist
+				if (!$button.length || !$span.length) {
+					console.error('Button or span not found for PID:', pid);
+					return; // Exit if elements are not found
+				}
+
+				const isApproved = $toggle.hasClass('fa-toggle-on') ? false : true; // toggle state
+
+				// Send the approval status to the server
+				$.ajax({
+					url: '/api/v3/posts/' + pid + '/approve',
+					method: 'PUT',
+					data: {
+						isApproved: !isApproved,
+						// CSRF: csrfToken
+					},
+					headers: {
+						'x-csrf-token': csrfToken,
+						'X-CSRFToken': csrfToken
+					},
+					success: function(response) {
+						// Handle success (update UI accordingly)
+						// console.log("Approving successful. isApproved: ")
+						// console.log(isApproved);
+						// console.log("Response:");
+						console.log(response);
+						if (isApproved) {
+							$toggle.removeClass('fa-toggle-off').addClass('fa-toggle-on');
+							$checkmark.removeClass('fa-times-circle-o').addClass('fa-check-circle');
+							$span.text('Disapprove Post');
+							$checkmarkText.text('Instructor Approved')
+						} else {
+							$toggle.removeClass('fa-toggle-on').addClass('fa-toggle-off');
+							$checkmark.removeClass('fa-check-circle').addClass('fa-times-circle-o');
+							$span.text('Approve Post');
+							$checkmarkText.text('Instructor Unapproved')
+						}
+					},
+					error: function(err) {
+						console.error('Error updating post approval status', err);
+						// Optionally notify the user of the error
+						alert('An error occurred while updating the post approval status. Please try again.');
+					}
+				});
+			});
+</script>
+`;
+
+		// Check if the content already contains the string for line 59
+		if (!content.includes(stringToAddAtLine59.trim())) {
+			// Insert the string at line 59 (keeping array zero-based, so line 58 in the array)
+			lines.splice(58, 0, stringToAddAtLine59);
+		} else {
+			console.log('String to add at line 59 already exists, skipping...');
+		}
+
+		// Check if the content already contains the string for line 117
+		if (!content.includes(stringToAddAtLine117.trim())) {
+			// Insert the string at line 117 (keeping array zero-based, so line 116 in the array)
+			lines.splice(116, 0, stringToAddAtLine117);
+		} else {
+			console.log('String to add at line 117 already exists, skipping...');
+		}
+
+		// Join the array back into a single string
+		content = lines.join('\n');
+		
+		// Write the modified content back to the file
+		await fs.writeFile(templatePath, content, 'utf8');
+		console.log('Template file updated successfully!');
+	} catch (error) {
+		winston.error(`Failed to edit template file: ${error.message}`);
+	}
+}
+
 
 function getWebpackConfig() {
 	return require(process.env.NODE_ENV !== 'development' ? '../../webpack.prod' : '../../webpack.dev');

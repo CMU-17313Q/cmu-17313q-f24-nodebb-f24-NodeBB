@@ -189,7 +189,11 @@
 	"composer.replying-to": "Replying to %1",
 	"composer.new-topic": "New Topic",
 	"composer.editing-in": "Editing post in %1",
-
+	"composer-anonymous-none": "None",
+	"composer-anonymous-student": "Student",
+	"composer-anonymous-all": "Everyone",
+	"composer.select-anonymous-type": "Annonymous type",
+	
 	"composer.uploading": "uploading...",
 	"composer.thumb-url-label": "Paste a topic thumbnail URL",
 	"composer.thumb-title": "Add a thumbnail to this topic",
