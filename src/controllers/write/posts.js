@@ -187,11 +187,11 @@ async function markPostAsApproved(pid, uid) {
         if (!post) {
             throw new Error(`Post with ID ${pid} not found`);
         }
-
-       post.isApproved = !post.isApproved;
-
+		
+		post.isApproved = !(post.isApproved === 'true' || post.isApproved === true);
+		const newIsApproved = post.isApproved
        await db.setObject(`post:${pid}`, post);
-	   return !post.isApproved;
+	   return newIsApproved;
     } catch (err) {
         console.error(`Failed to approve post ${pid}:`, err);
         throw err;
