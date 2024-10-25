@@ -180,6 +180,7 @@ Posts.getReplies = async (req, res) => {
 	helpers.formatApiResponse(200, res, { replies });
 };
 
+
 async function markPostAsApproved(pid, status) {
     try {
         // 1. Fetch the post by pid
@@ -216,5 +217,6 @@ Posts.approve = async (req, res) => {
 		}
 	} catch (error) {
 		res.status(500).json({ error: '[Alert] An error occurred while approving the post' });
+
 	}
 };
