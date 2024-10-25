@@ -43,6 +43,7 @@ module.exports = function () {
 
 	// Shorthand route to access post routes by topic index
 	router.all('/+byIndex/:index*?', [middleware.checkRequired.bind(null, ['tid'])], controllers.write.posts.redirectByIndex);
+	setupApiRoute(router, 'put', '/:pid/approve', [...middlewares], controllers.write.posts.approve);
 
 	return router;
 };

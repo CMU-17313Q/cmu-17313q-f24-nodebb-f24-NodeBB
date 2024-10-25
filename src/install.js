@@ -486,6 +486,8 @@ async function createWelcomePost() {
 			cid: 2,
 			title: 'Welcome to your NodeBB!',
 			content: content,
+			annonymousType: "none",
+			isApproved: true,
 		});
 	}
 }
