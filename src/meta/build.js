@@ -227,22 +227,22 @@ async function editPostTPL() {
 		let lines = content.split('\n');
 		
 		// Define the string to add at line 59
-		const stringToAddAtLine59 = `{{{ if ./isApproved }}} 
+		const stringToAddAtLine59 = `{{{ if (./isApproved == "true") }}} 
 				<span class="verified-checkmark text-success">
-					<i class="fa fa-check-circle"></i>
-					<span class="text-muted">Instructor Approved</span>
+					<i id="toggle-checkmark-{./pid}" class="fa fa-check-circle"></i>
+					<span id="toggle-checkmark-text-{./pid}" class="text-muted">Instructor Approved </span>
 				</span>
 				{{{ else }}}
 				 <span class="verified-checkmark text-success">
-					<i class="fa fa-uncheck-circle"></i>
-					<span class="text-muted">Instructor Unapproved</span>
+					<i id="toggle-checkmark-{./pid}" class="fa fa-times-circle-o"></i>
+					<span id="toggle-checkmark-text-{./pid}" class="text-muted">Instructor Unapproved </span>
 				</span>
 				{{{ end }}}`;
 
 		// Define the string to add at line 117
 		const stringToAddAtLine117 = `<button id="post-toggle-button-{./pid}" component="post/toggle-button" class="btn-ghost-sm" data-toggle="post-toggle" data-pid="{./pid}" data-csrf-token="{config.csrf_token}" > 
-			<i id="toggle-i-{./pid}" class="fa fa-fw fa-toggle-off text-primary"></i>
-			<span id="toggle-span-{./pid}" class="text-muted">Approve Post</span>
+			<i id="toggle-i-{./pid}" class="fa fa-fw {{{ if (./isApproved == "true")}}} fa-toggle-on {{{ else }}} fa-toggle-off {{{ end }}} text-primary"></i>
+			<span id="toggle-span-{./pid}" class="text-muted">{{{ if (./isApproved == "true")}}} Disapprove Post {{{ else }}} Approve Post {{{ end }}}</span>
 		</button>
 		<script>
 			$(document).on('click', '[component="post/toggle-button"]', function() {
@@ -251,11 +251,15 @@ async function editPostTPL() {
 				const buttonId = '#post-toggle-button-' + pid; // build button ID
 				const spanId = '#toggle-span-' + pid; // build span ID
 				const toggleId = '#toggle-i-' + pid;  // build toggle ID
+				const checkmarkId = '#toggle-checkmark-' + pid
+				const checkmarkTextId = '#toggle-checkmark-text-' + pid
 				const csrfToken = $this.attr('data-csrf-token');
 				// Cache jQuery selections
 				const $button = $(buttonId);
 				const $span = $(spanId);
 				const $toggle = $(toggleId);
+				const $checkmark = $(checkmarkId);
+				const $checkmarkText = $(checkmarkTextId);
 
 				// Check if the button and span exist
 				if (!$button.length || !$span.length) {
@@ -269,8 +273,9 @@ async function editPostTPL() {
 				$.ajax({
 					url: '/api/v3/posts/' + pid + '/approve',
 					method: 'PUT',
-					data: { 
-						CSRF: csrfToken
+					data: {
+						isApproved: !isApproved,
+						// CSRF: csrfToken
 					},
 					headers: {
 						'x-csrf-token': csrfToken,
@@ -284,10 +289,14 @@ async function editPostTPL() {
 						console.log(response);
 						if (isApproved) {
 							$toggle.removeClass('fa-toggle-off').addClass('fa-toggle-on');
+							$checkmark.removeClass('fa-times-circle-o').addClass('fa-check-circle');
 							$span.text('Disapprove Post');
+							$checkmarkText.text('Instructor Approved')
 						} else {
 							$toggle.removeClass('fa-toggle-on').addClass('fa-toggle-off');
+							$checkmark.removeClass('fa-check-circle').addClass('fa-times-circle-o');
 							$span.text('Approve Post');
+							$checkmarkText.text('Instructor Unapproved')
 						}
 					},
 					error: function(err) {

@@ -180,7 +180,7 @@ Posts.getReplies = async (req, res) => {
 	helpers.formatApiResponse(200, res, { replies });
 };
 
-async function markPostAsApproved(pid, uid) {
+async function markPostAsApproved(pid, status) {
     try {
         // 1. Fetch the post by pid
         const post = await db.getObject(`post:${pid}`);
@@ -188,8 +188,9 @@ async function markPostAsApproved(pid, uid) {
             throw new Error(`Post with ID ${pid} not found`);
         }
 		
-		post.isApproved = !(post.isApproved === 'true' || post.isApproved === true);
-		const newIsApproved = post.isApproved
+		const newIsApproved = !(status === 'true' || status === true);
+		post.isApproved = newIsApproved;
+		
        await db.setObject(`post:${pid}`, post);
 	   return newIsApproved;
     } catch (err) {
@@ -201,12 +202,18 @@ async function markPostAsApproved(pid, uid) {
 Posts.approve = async (req, res) => {
 	console.log("Trying to approve");
 	try {
-		console.log("Approving post");
+		// console.log("Approving post for req");
+		// console.log(req);
 		const { pid } = req.params;
 		// Assuming you have a function to mark the post as approved
-		const isApproved = await markPostAsApproved(pid, req.user.id);
-		console.log("Approved post");
-		res.status(200).json({ message: '[Server] Post approved successfully', isApproved: isApproved });
+		const isApproved = await markPostAsApproved(pid, req.body.isApproved);
+		if (isApproved){
+			console.log("[SERVER] Approved post");
+			res.status(200).json({ message: '[Server] Post approved successfully', isApproved: isApproved });
+		} else {
+			console.log("[SERVER] Disapproved post");
+			res.status(200).json({ message: '[Server] Post disapproved successfully', isApproved: isApproved });
+		}
 	} catch (error) {
 		res.status(500).json({ error: '[Alert] An error occurred while approving the post' });
 	}
