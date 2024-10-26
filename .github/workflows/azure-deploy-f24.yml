@@ -19,7 +19,7 @@ jobs:
       ./.github/workflows/test.yaml
 
   build-and-deploy:
-    if: github.repository == 'nodebb-f24-swifties'
+    if: github.repository == 'CMU-17313Q/nodebb-f24-swifties'
     needs: lint-and-test
 
     runs-on: ubuntu-latest
