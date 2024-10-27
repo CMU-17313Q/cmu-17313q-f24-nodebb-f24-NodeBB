@@ -1,0 +1,4 @@
+source,destination
+post.tpl,node_modules/nodebb-theme-harmony/templates/partials/topic/post.tpl
+composer.js,node_modules/nodebb-plugin-composer-default/static/lib/composer.js
+composer-title-container.tpl,node_modules/nodebb-plugin-composer-default/static/templates/partials/composer-title-container.tpl
