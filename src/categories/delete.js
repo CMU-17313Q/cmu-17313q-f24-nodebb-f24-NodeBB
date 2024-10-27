@@ -1,13 +1,13 @@
-"use strict";
+'use strict';
 
-const async = require("async");
-const db = require("../database");
-const batch = require("../batch");
-const plugins = require("../plugins");
-const topics = require("../topics");
-const groups = require("../groups");
-const privileges = require("../privileges");
-const cache = require("../cache");
+const async = require('async');
+const db = require('../database');
+const batch = require('../batch');
+const plugins = require('../plugins');
+const topics = require('../topics');
+const groups = require('../groups');
+const privileges = require('../privileges');
+const cache = require('../cache');
 
 module.exports = function (Categories) {
 	Categories.purge = async function (cid, uid) {
@@ -31,7 +31,7 @@ module.exports = function (Categories) {
 		});
 		const categoryData = await Categories.getCategoryData(cid);
 		await purgeCategory(cid, categoryData);
-		plugins.hooks.fire("action:category.delete", {
+		plugins.hooks.fire('action:category.delete', {
 			cid: cid,
 			uid: uid,
 			category: categoryData,
@@ -39,10 +39,10 @@ module.exports = function (Categories) {
 	};
 
 	async function purgeCategory(cid, categoryData) {
-		const bulkRemove = [["categories:cid", cid]];
+		const bulkRemove = [['categories:cid', cid]];
 		if (categoryData && categoryData.name) {
 			bulkRemove.push([
-				"categories:name",
+				'categories:name',
 				`${categoryData.name.slice(0, 200).toLowerCase()}:${cid}`,
 			]);
 		}
@@ -67,31 +67,31 @@ module.exports = function (Categories) {
 		]);
 		const privilegeList = await privileges.categories.getPrivilegeList();
 		await groups.destroy(
-			privilegeList.map((privilege) => `cid:${cid}:privileges:${privilege}`),
+			privilegeList.map(privilege => `cid:${cid}:privileges:${privilege}`),
 		);
 	}
 
 	async function removeFromParent(cid) {
 		const [parentCid, children] = await Promise.all([
-			Categories.getCategoryField(cid, "parentCid"),
+			Categories.getCategoryField(cid, 'parentCid'),
 			db.getSortedSetRange(`cid:${cid}:children`, 0, -1),
 		]);
 
 		const bulkAdd = [];
 		const childrenKeys = children.map((cid) => {
-			bulkAdd.push(["cid:0:children", cid, cid]);
+			bulkAdd.push(['cid:0:children', cid, cid]);
 			return `category:${cid}`;
 		});
 
 		await Promise.all([
 			db.sortedSetRemove(`cid:${parentCid}:children`, cid),
-			db.setObjectField(childrenKeys, "parentCid", 0),
+			db.setObjectField(childrenKeys, 'parentCid', 0),
 			db.sortedSetAddBulk(bulkAdd),
 		]);
 
 		cache.del([
-			"categories:cid",
-			"cid:0:children",
+			'categories:cid',
+			'cid:0:children',
 			`cid:${parentCid}:children`,
 			`cid:${parentCid}:children:all`,
 			`cid:${cid}:children`,
@@ -102,7 +102,7 @@ module.exports = function (Categories) {
 
 	async function deleteTags(cid) {
 		const tags = await db.getSortedSetMembers(`cid:${cid}:tags`);
-		await db.deleteAll(tags.map((tag) => `cid:${cid}:tag:${tag}:topics`));
+		await db.deleteAll(tags.map(tag => `cid:${cid}:tag:${tag}:topics`));
 		await db.delete(`cid:${cid}:tags`);
 	}
 };
