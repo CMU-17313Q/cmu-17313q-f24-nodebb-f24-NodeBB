@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Plato - src/api/categories.js</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="">
+  <meta name="author" content="">
+
+  <!--[if lt IE 9]>
+  <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+  <![endif]-->
+
+  <link href="../../assets/css/vendor/morris.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/bootstrap.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/font-awesome.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/codemirror.css" rel="stylesheet">
+  <link href="../../assets/css/plato.css" rel="stylesheet">
+  <link href="../../assets/css/plato-file.css" rel="stylesheet">
+
+</head>
+
+<body>
+
+<div class="navbar navbar-fixed-top">
+  <div class="container">
+    <a class="navbar-brand" href="http://github.com/es-analysis/plato">Plato on Github</a>
+    <ul class="nav navbar-nav">
+      <li>
+        <a href="../../index.html">Report Home</a>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div class="jumbotron">
+  <div class="container">
+    <h1>src/api/categories.js</h1>
+  </div>
+</div>
+
+<div class="container aggregate-stats">
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="header">Maintainability <a href="http://blogs.msdn.com/b/codeanalysis/archive/2007/11/20/maintainability-index-range-and-meaning.aspx"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="A value between 0 and 100 that represents the relative ease of maintaining the code. A high value means better maintainability." data-original-title="Maintainability Index"  data-container="body"></i></a></h2>
+      <p class="stat">60.22</p>
+    </div>
+    <div class="col-md-6">
+      <h2 class="header">Lines of code <i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Source Lines of Code / Logical Lines of Code" data-original-title="SLOC/LSLOC" data-container="body"></i></h2>
+      <p class="stat">348</p>
+    </div>
+  </div>
+  <div class="row historical">
+    <div class="col-md-6">
+      <p id="chart_historical_maint" class="chart"></p>
+    </div>
+    <div class="col-md-6">
+      <p id="chart_historical_sloc" class="chart"></p>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="header">Difficulty  <a href="http://en.wikipedia.org/wiki/Halstead_complexity_measures"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="The difficulty measure is related to the difficulty of the program to write or understand." data-original-title="Difficulty" data-container="body"></i></a></h2>
+      <p class="stat">41.71</p>
+    </div>
+    <div class="col-md-6">
+      <h2 class="header">Estimated Errors  <a href="http://en.wikipedia.org/wiki/Halstead_complexity_measures"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Halstead's delivered bugs is an estimate for the number of errors in the implementation." data-original-title="Delivered Bugs" data-container="body"></i></a></h2>
+      <p class="stat">4.06</p>
+    </div>
+  </div>
+</div>
+
+<div class="container charts">
+  <div class="row">
+    <h2 class="header">Function weight</h2>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h3 class="chart-header">By Complexity <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="This metric counts the number of distinct paths through a block of code. Lower values are better." data-original-title="Cyclomatic Complexity" data-container="body"></i></a></h3>
+      <div id="fn-by-complexity" class="stat"></div>
+    </div>
+    <div class="col-md-6">
+      <h3 class="chart-header">By SLOC  <i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Source Lines of Code / Logical Lines of Code" data-original-title="SLOC/LSLOC" data-container="body"></i></h3>
+      <div id="fn-by-sloc" class="stat"></div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="row">
+    <textarea id="file-source" class="col-md-12">&#039;use strict&#039;;
+
+const meta = require(&#039;../meta&#039;);
+const categories = require(&#039;../categories&#039;);
+const topics = require(&#039;../topics&#039;);
+const events = require(&#039;../events&#039;);
+const user = require(&#039;../user&#039;);
+const groups = require(&#039;../groups&#039;);
+const privileges = require(&#039;../privileges&#039;);
+
+const categoriesAPI = module.exports;
+
+const hasAdminPrivilege = async (uid, privilege = &#039;categories&#039;) =&gt; {
+	const ok = await privileges.admin.can(`admin:${privilege}`, uid);
+	if (!ok) {
+		throw new Error(&#039;[[error:no-privileges]]&#039;);
+	}
+};
+
+categoriesAPI.list = async (caller) =&gt; {
+	async function getCategories() {
+		const cids = await categories.getCidsByPrivilege(&#039;categories:cid&#039;, caller.uid, &#039;find&#039;);
+		return await categories.getCategoriesData(cids);
+	}
+
+	const [isAdmin, categoriesData] = await Promise.all([
+		user.isAdministrator(caller.uid),
+		getCategories(),
+	]);
+
+	return {
+		categories: categoriesData.filter(category =&gt; category &amp;&amp; (!category.disabled || isAdmin)),
+	};
+};
+
+categoriesAPI.get = async function (caller, data) {
+	const [userPrivileges, category] = await Promise.all([
+		privileges.categories.get(data.cid, caller.uid),
+		categories.getCategoryData(data.cid),
+	]);
+	if (!category || !userPrivileges.read) {
+		return null;
+	}
+
+	return category;
+};
+
+categoriesAPI.search = async function (caller, data) {
+	if (!data) {
+		throw new Error(&#039;[[error:invalid-data]]&#039;);
+	}
+	const [allowed, isPrivileged] = await Promise.all([
+		privileges.global.can(&#039;search:users&#039;, caller.uid),
+		user.isPrivileged(caller.uid),
+	]);
+	let filters = data.filters || [];
+	filters = Array.isArray(filters) ? filters : [filters];
+	if (!allowed ||
+		((
+			data.searchBy === &#039;ip&#039; ||
+			data.searchBy === &#039;email&#039; ||
+			filters.includes(&#039;banned&#039;) ||
+			filters.includes(&#039;flagged&#039;)
+		) &amp;&amp; !isPrivileged)
+	) {
+		throw new Error(&#039;[[error:no-privileges]]&#039;);
+	}
+
+	return await categories.searchTopics({
+		uid: caller.uid,
+		cid: &#039;2&#039;,
+		start: 0,
+		stop: 19,
+		sort: data.sortBy,
+		settings: {
+			uid: 1,
+			showemail: false,
+			showfullname: false,
+			openOutgoingLinksInNewTab: false,
+			dailyDigestFreq: &#039;off&#039;,
+			usePagination: false,
+			topicsPerPage: 20,
+			postsPerPage: 20,
+			userLang: &#039;en-GB&#039;,
+			acpLang: &#039;en-GB&#039;,
+			topicPostSort: &#039;oldest_to_newest&#039;,
+			categoryTopicSort: &#039;recently_replied&#039;,
+			followTopicsOnCreate: true,
+			followTopicsOnReply: false,
+			upvoteNotifFreq: &#039;all&#039;,
+			restrictChat: false,
+			topicSearchEnabled: false,
+			updateUrlWithPostIndex: true,
+			bootswatchSkin: &#039;&#039;,
+			homePageRoute: &#039;&#039;,
+			scrollToMyPost: true,
+			categoryWatchState: &#039;tracking&#039;,
+			notificationType_upvote: &#039;notification&#039;,
+			&#039;notificationType_new-topic&#039;: &#039;notification&#039;,
+			&#039;notificationType_new-topic-with-tag&#039;: &#039;notification&#039;,
+			&#039;notificationType_new-topic-in-category&#039;: &#039;notification&#039;,
+			&#039;notificationType_new-reply&#039;: &#039;notification&#039;,
+			&#039;notificationType_post-edit&#039;: &#039;notification&#039;,
+			notificationType_follow: &#039;notification&#039;,
+			&#039;notificationType_new-chat&#039;: &#039;notification&#039;,
+			&#039;notificationType_new-group-chat&#039;: &#039;notification&#039;,
+			&#039;notificationType_new-public-chat&#039;: &#039;notification&#039;,
+			&#039;notificationType_group-invite&#039;: &#039;notification&#039;,
+			&#039;notificationType_group-leave&#039;: &#039;notification&#039;,
+			&#039;notificationType_group-request-membership&#039;: &#039;notification&#039;,
+			&#039;notificationType_new-reward&#039;: &#039;notification&#039;,
+			notificationType_mention: &#039;notification&#039;,
+			&#039;notificationType_new-register&#039;: &#039;notification&#039;,
+			&#039;notificationType_post-queue&#039;: &#039;notification&#039;,
+			&#039;notificationType_new-post-flag&#039;: &#039;notification&#039;,
+			&#039;notificationType_new-user-flag&#039;: &#039;notification&#039;,
+		},
+		query: data.query,
+		tag: undefined,
+		targetUid: 0,
+		category: {
+			cid: 2,
+			name: &#039;General Discussion&#039;,
+			description: &#039;A place to talk about whatever you want&#039;,
+			descriptionParsed: &#039;&lt;p&gt;A place to talk about whatever you want&lt;/p&gt;\n&#039;,
+			icon: &#039;fa-comments-o&#039;,
+			bgColor: &#039;#59b3d0&#039;,
+			color: &#039;#ffffff&#039;,
+			slug: &#039;2/general-discussion&#039;,
+			parentCid: 0,
+			topic_count: 5,
+			post_count: 7,
+			disabled: 0,
+			order: 2,
+			link: &#039;&#039;,
+			numRecentReplies: 1,
+			class: &#039;col-md-3 col-6&#039;,
+			imageClass: &#039;cover&#039;,
+			isSection: 0,
+			subCategoriesPerPage: 10,
+			minTags: 0,
+			maxTags: 5,
+			postQueue: 0,
+			totalPostCount: 7,
+			totalTopicCount: 5,
+			tagWhitelist: [],
+		},
+	});
+};
+
+categoriesAPI.create = async function (caller, data) {
+	await hasAdminPrivilege(caller.uid);
+
+	const response = await categories.create(data);
+	const categoryObjs = await categories.getCategories([response.cid]);
+	return categoryObjs[0];
+};
+
+categoriesAPI.update = async function (caller, data) {
+	await hasAdminPrivilege(caller.uid);
+	if (!data) {
+		throw new Error(&#039;[[error:invalid-data]]&#039;);
+	}
+	const { cid, values } = data;
+
+	const payload = {};
+	payload[cid] = values;
+	await categories.update(payload);
+};
+
+categoriesAPI.delete = async function (caller, { cid }) {
+	await hasAdminPrivilege(caller.uid);
+
+	const name = await categories.getCategoryField(cid, &#039;name&#039;);
+	await categories.purge(cid, caller.uid);
+	await events.log({
+		type: &#039;category-purge&#039;,
+		uid: caller.uid,
+		ip: caller.ip,
+		cid: cid,
+		name: name,
+	});
+};
+
+categoriesAPI.getTopicCount = async (caller, { cid }) =&gt; {
+	const allowed = await privileges.categories.can(&#039;find&#039;, cid, caller.uid);
+	if (!allowed) {
+		throw new Error(&#039;[[error:no-privileges]]&#039;);
+	}
+	const count = await categories.getCategoryField(cid, &#039;topic_count&#039;);
+	return { count };
+};
+
+categoriesAPI.getPosts = async (caller, { cid }) =&gt; await categories.getRecentReplies(cid, caller.uid, 0, 4);
+
+categoriesAPI.getChildren = async (caller, { cid, start }) =&gt; {
+	if (!start || start &lt; 0) {
+		start = 0;
+	}
+	start = parseInt(start, 10);
+
+	const allowed = await privileges.categories.can(&#039;read&#039;, cid, caller.uid);
+	if (!allowed) {
+		throw new Error(&#039;[[error:no-privileges]]&#039;);
+	}
+
+	const category = await categories.getCategoryData(cid);
+	await categories.getChildrenTree(category, caller.uid);
+	const allCategories = [];
+	categories.flattenCategories(allCategories, category.children);
+	await categories.getRecentTopicReplies(allCategories, caller.uid);
+
+	const payload = category.children.slice(start, start + category.subCategoriesPerPage);
+	return { categories: payload };
+};
+
+categoriesAPI.getTopics = async (caller, data) =&gt; {
+	data.query = data.query || {};
+	const [userPrivileges, settings, targetUid] = await Promise.all([
+		privileges.categories.get(data.cid, caller.uid),
+		user.getSettings(caller.uid),
+		user.getUidByUserslug(data.query.author),
+	]);
+
+	if (!userPrivileges.read) {
+		throw new Error(&#039;[[error:no-privileges]]&#039;);
+	}
+
+	const infScrollTopicsPerPage = 20;
+	const sort = data.sort || data.categoryTopicSort || meta.config.categoryTopicSort || &#039;recently_replied&#039;;
+
+	let start = Math.max(0, parseInt(data.after || 0, 10));
+
+	if (parseInt(data.direction, 10) === -1) {
+		start -= infScrollTopicsPerPage;
+	}
+
+	let stop = start + infScrollTopicsPerPage - 1;
+
+	start = Math.max(0, start);
+	stop = Math.max(0, stop);
+	const result = await categories.getCategoryTopics({
+		uid: caller.uid,
+		cid: data.cid,
+		start,
+		stop,
+		sort,
+		settings,
+		query: data.query,
+		tag: data.query.tag,
+		targetUid,
+	});
+	categories.modifyTopicsByPrivilege(result.topics, userPrivileges);
+
+	return { ...result, privileges: userPrivileges };
+};
+
+categoriesAPI.setWatchState = async (caller, { cid, state, uid }) =&gt; {
+	let targetUid = caller.uid;
+	const cids = Array.isArray(cid) ? cid.map(cid =&gt; parseInt(cid, 10)) : [parseInt(cid, 10)];
+	if (uid) {
+		targetUid = uid;
+	}
+	await user.isAdminOrGlobalModOrSelf(caller.uid, targetUid);
+	const allCids = await categories.getAllCidsFromSet(&#039;categories:cid&#039;);
+	const categoryData = await categories.getCategoriesFields(allCids, [&#039;cid&#039;, &#039;parentCid&#039;]);
+
+	// filter to subcategories of cid
+	let cat;
+	do {
+		cat = categoryData.find(c =&gt; !cids.includes(c.cid) &amp;&amp; cids.includes(c.parentCid));
+		if (cat) {
+			cids.push(cat.cid);
+		}
+	} while (cat);
+
+	await user.setCategoryWatchState(targetUid, cids, state);
+	await topics.pushUnreadCount(targetUid);
+
+	return { cids };
+};
+
+categoriesAPI.getPrivileges = async (caller, { cid }) =&gt; {
+	await hasAdminPrivilege(caller.uid, &#039;privileges&#039;);
+
+	let responsePayload;
+
+	if (cid === &#039;admin&#039;) {
+		responsePayload = await privileges.admin.list(caller.uid);
+	} else if (!parseInt(cid, 10)) {
+		responsePayload = await privileges.global.list();
+	} else {
+		responsePayload = await privileges.categories.list(cid);
+	}
+
+	return responsePayload;
+};
+
+categoriesAPI.setPrivilege = async (caller, data) =&gt; {
+	await hasAdminPrivilege(caller.uid, &#039;privileges&#039;);
+
+	const [userExists, groupExists] = await Promise.all([
+		user.exists(data.member),
+		groups.exists(data.member),
+	]);
+
+	if (!userExists &amp;&amp; !groupExists) {
+		throw new Error(&#039;[[error:no-user-or-group]]&#039;);
+	}
+	const privs = Array.isArray(data.privilege) ? data.privilege : [data.privilege];
+	const type = data.set ? &#039;give&#039; : &#039;rescind&#039;;
+	if (!privs.length) {
+		throw new Error(&#039;[[error:invalid-data]]&#039;);
+	}
+	if (parseInt(data.cid, 10) === 0) {
+		const adminPrivList = await privileges.admin.getPrivilegeList();
+		const adminPrivs = privs.filter(priv =&gt; adminPrivList.includes(priv));
+		if (adminPrivs.length) {
+			await privileges.admin[type](adminPrivs, data.member);
+		}
+		const globalPrivList = await privileges.global.getPrivilegeList();
+		const globalPrivs = privs.filter(priv =&gt; globalPrivList.includes(priv));
+		if (globalPrivs.length) {
+			await privileges.global[type](globalPrivs, data.member);
+		}
+	} else {
+		const categoryPrivList = await privileges.categories.getPrivilegeList();
+		const categoryPrivs = privs.filter(priv =&gt; categoryPrivList.includes(priv));
+		await privileges.categories[type](categoryPrivs, data.cid, data.member);
+	}
+
+	await events.log({
+		uid: caller.uid,
+		type: &#039;privilege-change&#039;,
+		ip: caller.ip,
+		privilege: data.privilege.toString(),
+		cid: data.cid,
+		action: data.set ? &#039;grant&#039; : &#039;rescind&#039;,
+		target: data.member,
+	});
+};
+
+categoriesAPI.setModerator = async (caller, { cid, member, set }) =&gt; {
+	await hasAdminPrivilege(caller.uid, &#039;admins-mods&#039;);
+
+	const privilegeList = await privileges.categories.getUserPrivilegeList();
+	await categoriesAPI.setPrivilege(caller, { cid, privilege: privilegeList, member, set });
+};</textarea>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="container">
+    <p>.</p>
+  </div>
+</footer>
+
+<script type="text/html" id="complexity-popover-template">
+  <div class="complexity-notice">
+    Complexity : {{ cyclomatic }} <br>
+    Length : {{ halstead.length }} <br>
+    Difficulty : {{ halstead.difficulty.toFixed(2) }} <br>
+    Est # bugs : {{ halstead.bugs.toFixed(2) }}<br>
+  </div>
+</script>
+
+<script type="text/javascript" src="../../assets/scripts/bundles/core-bundle.js"></script>
+<script type="text/javascript" src="../../assets/scripts/bundles/codemirror.js"></script>
+<script type="text/javascript" src="../../assets/scripts/codemirror.markpopovertext.js"></script>
+<script type="text/javascript" src="report.js"></script>
+<script type="text/javascript" src="report.history.js"></script>
+<script type="text/javascript" src="../../assets/scripts/plato-file.js"></script>
+</body>
+</html>

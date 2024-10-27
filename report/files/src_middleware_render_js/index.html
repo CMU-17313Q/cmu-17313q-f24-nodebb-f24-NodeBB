@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Plato - src/middleware/render.js</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="">
+  <meta name="author" content="">
+
+  <!--[if lt IE 9]>
+  <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+  <![endif]-->
+
+  <link href="../../assets/css/vendor/morris.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/bootstrap.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/font-awesome.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/codemirror.css" rel="stylesheet">
+  <link href="../../assets/css/plato.css" rel="stylesheet">
+  <link href="../../assets/css/plato-file.css" rel="stylesheet">
+
+</head>
+
+<body>
+
+<div class="navbar navbar-fixed-top">
+  <div class="container">
+    <a class="navbar-brand" href="http://github.com/es-analysis/plato">Plato on Github</a>
+    <ul class="nav navbar-nav">
+      <li>
+        <a href="../../index.html">Report Home</a>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div class="jumbotron">
+  <div class="container">
+    <h1>src/middleware/render.js</h1>
+  </div>
+</div>
+
+<div class="container aggregate-stats">
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="header">Maintainability <a href="http://blogs.msdn.com/b/codeanalysis/archive/2007/11/20/maintainability-index-range-and-meaning.aspx"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="A value between 0 and 100 that represents the relative ease of maintaining the code. A high value means better maintainability." data-original-title="Maintainability Index"  data-container="body"></i></a></h2>
+      <p class="stat">61.20</p>
+    </div>
+    <div class="col-md-6">
+      <h2 class="header">Lines of code <i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Source Lines of Code / Logical Lines of Code" data-original-title="SLOC/LSLOC" data-container="body"></i></h2>
+      <p class="stat">528</p>
+    </div>
+  </div>
+  <div class="row historical">
+    <div class="col-md-6">
+      <p id="chart_historical_maint" class="chart"></p>
+    </div>
+    <div class="col-md-6">
+      <p id="chart_historical_sloc" class="chart"></p>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="header">Difficulty  <a href="http://en.wikipedia.org/wiki/Halstead_complexity_measures"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="The difficulty measure is related to the difficulty of the program to write or understand." data-original-title="Difficulty" data-container="body"></i></a></h2>
+      <p class="stat">57.43</p>
+    </div>
+    <div class="col-md-6">
+      <h2 class="header">Estimated Errors  <a href="http://en.wikipedia.org/wiki/Halstead_complexity_measures"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Halstead's delivered bugs is an estimate for the number of errors in the implementation." data-original-title="Delivered Bugs" data-container="body"></i></a></h2>
+      <p class="stat">8.10</p>
+    </div>
+  </div>
+</div>
+
+<div class="container charts">
+  <div class="row">
+    <h2 class="header">Function weight</h2>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h3 class="chart-header">By Complexity <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="This metric counts the number of distinct paths through a block of code. Lower values are better." data-original-title="Cyclomatic Complexity" data-container="body"></i></a></h3>
+      <div id="fn-by-complexity" class="stat"></div>
+    </div>
+    <div class="col-md-6">
+      <h3 class="chart-header">By SLOC  <i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Source Lines of Code / Logical Lines of Code" data-original-title="SLOC/LSLOC" data-container="body"></i></h3>
+      <div id="fn-by-sloc" class="stat"></div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="row">
+    <textarea id="file-source" class="col-md-12">&#039;use strict&#039;;
+
+const _ = require(&#039;lodash&#039;);
+const nconf = require(&#039;nconf&#039;);
+const validator = require(&#039;validator&#039;);
+const jsesc = require(&#039;jsesc&#039;);
+const winston = require(&#039;winston&#039;);
+const semver = require(&#039;semver&#039;);
+
+const db = require(&#039;../database&#039;);
+const navigation = require(&#039;../navigation&#039;);
+const translator = require(&#039;../translator&#039;);
+const privileges = require(&#039;../privileges&#039;);
+const languages = require(&#039;../languages&#039;);
+const plugins = require(&#039;../plugins&#039;);
+const user = require(&#039;../user&#039;);
+const topics = require(&#039;../topics&#039;);
+const messaging = require(&#039;../messaging&#039;);
+const flags = require(&#039;../flags&#039;);
+const meta = require(&#039;../meta&#039;);
+const widgets = require(&#039;../widgets&#039;);
+const utils = require(&#039;../utils&#039;);
+const helpers = require(&#039;./helpers&#039;);
+const versions = require(&#039;../admin/versions&#039;);
+const controllersHelpers = require(&#039;../controllers/helpers&#039;);
+
+const relative_path = nconf.get(&#039;relative_path&#039;);
+
+async function checkAPI(req, options, res) {
+	if (req.route &amp;&amp; req.route.path === &#039;/api/&#039;) {
+		options.title = &#039;[[pages:home]]&#039;;
+	}
+	req.app.set(&#039;json spaces&#039;, global.env === &#039;development&#039; || req.query.pretty ? 4 : 0);
+	return res.json(options);
+}
+
+module.exports = function (middleware) {
+	middleware.processRender = function processRender(req, res, next) {
+		// res.render post-processing, modified from here: https://gist.github.com/mrlannigan/5051687
+		const { render } = res;
+
+		res.render = async function renderOverride(template, options, fn) {
+			const self = this;
+			const { req } = this;
+			async function renderMethod(template, options, fn) {
+				options = options || {};
+				if (typeof options === &#039;function&#039;) {
+					fn = options;
+					options = {};
+				}
+
+				options.loggedIn = req.uid &gt; 0;
+				options.loggedInUser = await getLoggedInUser(req);
+				options.relative_path = relative_path;
+				options.template = { name: template, [template]: true };
+				options.url = (req.baseUrl + req.path.replace(/^\/api/, &#039;&#039;));
+				options.bodyClass = helpers.buildBodyClass(req, res, options);
+
+				if (req.loggedIn) {
+					res.set(&#039;cache-control&#039;, &#039;private&#039;);
+				}
+
+				const buildResult = await plugins.hooks.fire(`filter:${template}.build`, {
+					req: req,
+					res: res,
+					templateData: options,
+				});
+				if (res.headersSent) {
+					return;
+				}
+				const templateToRender = buildResult.templateData.templateToRender || template;
+
+				const renderResult = await plugins.hooks.fire(&#039;filter:middleware.render&#039;, {
+					req: req,
+					res: res,
+					templateData: buildResult.templateData,
+				});
+				if (res.headersSent) {
+					return;
+				}
+				options = renderResult.templateData;
+				options._header = {
+					tags: await meta.tags.parse(req, renderResult, res.locals.metaTags, res.locals.linkTags),
+				};
+				options.widgets = await widgets.render(req.uid, {
+					template: `${template}.tpl`,
+					url: options.url,
+					templateData: options,
+					req: req,
+					res: res,
+				});
+				res.locals.template = template;
+				options._locals = undefined;
+
+				if (res.locals.isAPI) {
+					checkAPI(req, options, res);
+				}
+
+				const optionsString = JSON.stringify(options).replace(/&lt;\//g, &#039;&lt;\\/&#039;);
+				const headerFooterData = await loadHeaderFooterData(req, res, options);
+				const results = await utils.promiseParallel({
+					header: renderHeaderFooter(&#039;renderHeader&#039;, req, res, options, headerFooterData),
+					content: renderContent(render, templateToRender, req, res, options),
+					footer: renderHeaderFooter(&#039;renderFooter&#039;, req, res, options, headerFooterData),
+				});
+
+				const str = `${results.header +
+					(res.locals.postHeader || &#039;&#039;) +
+					results.content
+				}&lt;script id=&quot;ajaxify-data&quot; type=&quot;application/json&quot;&gt;${
+					optionsString
+				}&lt;/script&gt;${
+					res.locals.preFooter || &#039;&#039;
+				}${results.footer}`;
+
+				if (typeof fn !== &#039;function&#039;) {
+					self.send(str);
+				} else {
+					fn(null, str);
+				}
+			}
+
+			try {
+				await renderMethod(template, options, fn);
+			} catch (err) {
+				next(err);
+			}
+		};
+
+		next();
+	};
+
+	async function getLoggedInUser(req) {
+		// console.log(&#039;ZEINA HALAWA&#039;);
+		if (req.user) {
+			return await user.getUserData(req.uid);
+		}
+		return {
+			uid: req.uid === -1 ? -1 : 0,
+			username: &#039;[[global:guest]]&#039;,
+			picture: user.getDefaultAvatar(),
+			&#039;icon:text&#039;: &#039;?&#039;,
+			&#039;icon:bgColor&#039;: &#039;#aaa&#039;,
+		};
+	}
+
+	async function loadHeaderFooterData(req, res, options) {
+		if (res.locals.renderHeader) {
+			return await loadClientHeaderFooterData(req, res, options);
+		} else if (res.locals.renderAdminHeader) {
+			return await loadAdminHeaderFooterData(req, res, options);
+		}
+		return null;
+	}
+
+	function initializeTemplateValues(req, res, options, registrationType) {
+		return {
+			title: meta.config.title || &#039;&#039;,
+			&#039;title:url&#039;: meta.config[&#039;title:url&#039;] || &#039;&#039;,
+			description: meta.config.description || &#039;&#039;,
+			&#039;cache-buster&#039;: meta.config[&#039;cache-buster&#039;] || &#039;&#039;,
+			&#039;brand:logo&#039;: meta.config[&#039;brand:logo&#039;] || &#039;&#039;,
+			&#039;brand:logo:url&#039;: meta.config[&#039;brand:logo:url&#039;] || &#039;&#039;,
+			&#039;brand:logo:alt&#039;: meta.config[&#039;brand:logo:alt&#039;] || &#039;&#039;,
+			&#039;brand:logo:display&#039;: meta.config[&#039;brand:logo&#039;] ? &#039;&#039; : &#039;hide&#039;,
+			allowRegistration: registrationType === &#039;normal&#039;,
+			searchEnabled: plugins.hooks.hasListeners(&#039;filter:search.query&#039;),
+			postQueueEnabled: !!meta.config.postQueue,
+			registrationQueueEnabled: meta.config.registrationApprovalType !== &#039;normal&#039; || [&#039;invite-only&#039;, &#039;admin-invite-only&#039;].includes(meta.config.registrationType),
+			config: res.locals.config,
+			relative_path,
+			bodyClass: options.bodyClass,
+			widgets: options.widgets,
+			configJSON: jsesc(JSON.stringify(res.locals.config), { isScriptContext: true }),
+			browserTitle: &#039;&#039;,
+		};
+	}
+
+	function populateUserDetails(unreadData, results, uid, user) {
+		user.unreadData = unreadData;
+		user.isAdmin = results.isAdmin;
+		user.isGlobalMod = results.isGlobalMod;
+		user.isMod = !!results.isModerator;
+		user.privileges = results.privileges;
+		user.blocks = results.blocks;
+		user.timeagoCode = results.timeagoCode;
+		user[results.user.status] = true;
+		user.lastRoomId = results.roomIds.length ? results.roomIds[0] : null;
+		user.email = String(user.email);
+		user[&#039;email:confirmed&#039;] = user[&#039;email:confirmed&#039;] === 1;
+		user.isEmailConfirmSent = !!results.isEmailConfirmSent;
+	}
+
+	async function fetchData(uid, title, userLang) {
+		return await utils.promiseParallel({
+			isAdmin: user.isAdministrator(uid),
+			isGlobalMod: user.isGlobalModerator(uid),
+			isModerator: user.isModeratorOfAnyCategory(uid),
+			privileges: privileges.global.get(uid),
+			blocks: user.blocks.list(uid),
+			user: user.getUserData(uid),
+			isEmailConfirmSent: uid &lt;= 0 ? false : await user.email.isValidationPending(uid),
+			languageDirection: translator.translate(&#039;[[language:dir]]&#039;, userLang),
+			timeagoCode: languages.userTimeagoCode(userLang),
+			browserTitle: translator.translate(controllersHelpers.buildTitle(title)),
+			navigation: navigation.get(uid),
+			roomIds: uid &gt; 0 ? db.getSortedSetRevRange(`uid:${uid}:chat:rooms`, 0, 0) : [],
+		});
+	}
+
+	async function loadClientHeaderFooterData(req, res, options) {
+		const registrationType = meta.config.registrationType || &#039;normal&#039;;
+		res.locals.config = res.locals.config || {};
+		const templateValues = initializeTemplateValues(req, res, options, registrationType);
+		const title = translator.unescape(utils.stripHTMLTags(options.title || &#039;&#039;));
+		const results = await fetchData(req.uid, title, res.locals.config.userLang);
+		const unreadData = {
+			&#039;&#039;: {},
+			new: {},
+			watched: {},
+			unreplied: {},
+		};
+		populateUserDetails(unreadData, results, req.uid, results.user);
+		templateValues.bootswatchSkin = res.locals.config.bootswatchSkin || &#039;&#039;;
+		templateValues.browserTitle = results.browserTitle;
+		({
+			navigation: templateValues.navigation,
+			unreadCount: templateValues.unreadCount,
+		} = await appendUnreadCounts({
+			uid: req.uid,
+			query: req.query,
+			navigation: results.navigation,
+			unreadData,
+		}));
+		populateTemplateValues(templateValues, results, res.locals.config);
+		if (req.query.noScriptMessage) {
+			templateValues.noScriptMessage = validator.escape(String(req.query.noScriptMessage));
+		}
+		templateValues.template = { name: res.locals.template };
+		templateValues.template[res.locals.template] = true;
+		if (options.hasOwnProperty(&#039;_header&#039;)) {
+			templateValues.metaTags = options._header.tags.meta;
+			templateValues.linkTags = options._header.tags.link;
+		}
+		if (req.route &amp;&amp; req.route.path === &#039;/&#039;) {
+			modifyTitle(templateValues);
+		}
+		return templateValues;
+	}
+
+	async function populateTemplateValues(templateValues, results, config) {
+		templateValues.isAdmin = results.user.isAdmin;
+		templateValues.isGlobalMod = results.user.isGlobalMod;
+		templateValues.showModMenu = results.user.isAdmin || results.user.isGlobalMod || results.user.isMod;
+		templateValues.canChat = (results.privileges.chat || results.privileges[&#039;chat:privileged&#039;]) &amp;&amp; config.disableChat !== 1;
+		templateValues.user = results.user;
+		templateValues.userJSON = jsesc(JSON.stringify(results.user), { isScriptContext: true });
+		templateValues.useCustomCSS = config.useCustomCSS &amp;&amp; config.customCSS;
+		templateValues.customCSS = templateValues.useCustomCSS ? (config.renderedCustomCSS || &#039;&#039;) : &#039;&#039;;
+		templateValues.useCustomHTML = config.useCustomHTML;
+		templateValues.customHTML = templateValues.useCustomHTML ? config.customHTML : &#039;&#039;;
+		templateValues.maintenanceHeader = config.maintenanceMode &amp;&amp; !results.isAdmin;
+		templateValues.defaultLang = config.defaultLang || &#039;en-GB&#039;;
+		templateValues.userLang = config.userLang;
+		templateValues.languageDirection = results.languageDirection;
+	}
+
+	async function loadAdminHeaderFooterData(req, res, options) {
+		const custom_header = {
+			plugins: [],
+			authentication: [],
+		};
+		res.locals.config = res.locals.config || {};
+
+		const results = await utils.promiseParallel({
+			userData: user.getUserFields(req.uid, [&#039;username&#039;, &#039;userslug&#039;, &#039;email&#039;, &#039;picture&#039;, &#039;email:confirmed&#039;]),
+			scripts: getAdminScripts(),
+			custom_header: plugins.hooks.fire(&#039;filter:admin.header.build&#039;, custom_header),
+			configs: meta.configs.list(),
+			latestVersion: getLatestVersion(),
+			privileges: privileges.admin.get(req.uid),
+			tags: meta.tags.parse(req, {}, [], []),
+			languageDirection: translator.translate(&#039;[[language:dir]]&#039;, res.locals.config.acpLang),
+		});
+
+		const { userData } = results;
+		userData.uid = req.uid;
+		userData[&#039;email:confirmed&#039;] = userData[&#039;email:confirmed&#039;] === 1;
+		userData.privileges = results.privileges;
+
+		let acpPath = req.path.slice(1).split(&#039;/&#039;);
+		acpPath.forEach((path, i) =&gt; {
+			acpPath[i] = path.charAt(0).toUpperCase() + path.slice(1);
+		});
+		acpPath = acpPath.join(&#039; &gt; &#039;);
+
+		const version = nconf.get(&#039;version&#039;);
+
+		res.locals.config.userLang = res.locals.config.acpLang || res.locals.config.userLang;
+		res.locals.config.isRTL = results.languageDirection === &#039;rtl&#039;;
+		const templateValues = {
+			config: res.locals.config,
+			configJSON: jsesc(JSON.stringify(res.locals.config), { isScriptContext: true }),
+			relative_path: res.locals.config.relative_path,
+			adminConfigJSON: encodeURIComponent(JSON.stringify(results.configs)),
+			metaTags: results.tags.meta,
+			linkTags: results.tags.link,
+			user: userData,
+			userJSON: jsesc(JSON.stringify(userData), { isScriptContext: true }),
+			plugins: results.custom_header.plugins,
+			authentication: results.custom_header.authentication,
+			scripts: results.scripts,
+			&#039;cache-buster&#039;: meta.config[&#039;cache-buster&#039;] || &#039;&#039;,
+			env: !!process.env.NODE_ENV,
+			title: `${acpPath || &#039;Dashboard&#039;} | NodeBB Admin Control Panel`,
+			bodyClass: options.bodyClass,
+			version: version,
+			latestVersion: results.latestVersion,
+			upgradeAvailable: results.latestVersion &amp;&amp; semver.gt(results.latestVersion, version),
+			showManageMenu: results.privileges.superadmin || [&#039;categories&#039;, &#039;privileges&#039;, &#039;users&#039;, &#039;admins-mods&#039;, &#039;groups&#039;, &#039;tags&#039;, &#039;settings&#039;].some(priv =&gt; results.privileges[`admin:${priv}`]),
+			defaultLang: meta.config.defaultLang || &#039;en-GB&#039;,
+			acpLang: res.locals.config.acpLang,
+			languageDirection: results.languageDirection,
+		};
+
+		templateValues.template = { name: res.locals.template };
+		templateValues.template[res.locals.template] = true;
+		return templateValues;
+	}
+
+	function renderContent(render, tpl, req, res, options) {
+		return new Promise((resolve, reject) =&gt; {
+			render.call(res, tpl, options, async (err, str) =&gt; {
+				if (err) reject(err);
+				else resolve(await translate(str, getLang(req, res)));
+			});
+		});
+	}
+
+	async function renderHeader(req, res, options, headerFooterData) {
+		const hookReturn = await plugins.hooks.fire(&#039;filter:middleware.renderHeader&#039;, {
+			req: req,
+			res: res,
+			templateValues: headerFooterData, // TODO: deprecate
+			templateData: headerFooterData,
+			data: options,
+		});
+
+		return await req.app.renderAsync(&#039;header&#039;, hookReturn.templateData);
+	}
+
+	async function renderFooter(req, res, options, headerFooterData) {
+		const hookReturn = await plugins.hooks.fire(&#039;filter:middleware.renderFooter&#039;, {
+			req,
+			res,
+			templateValues: headerFooterData, // TODO: deprecate
+			templateData: headerFooterData,
+			data: options,
+		});
+
+		const scripts = await plugins.hooks.fire(&#039;filter:scripts.get&#039;, []);
+
+		hookReturn.templateData.scripts = scripts.map(script =&gt; ({ src: script }));
+
+		hookReturn.templateData.useCustomJS = meta.config.useCustomJS;
+		hookReturn.templateData.customJS = hookReturn.templateData.useCustomJS ? meta.config.customJS : &#039;&#039;;
+		hookReturn.templateData.isSpider = req.uid === -1;
+
+		return await req.app.renderAsync(&#039;footer&#039;, hookReturn.templateData);
+	}
+
+	async function renderAdminHeader(req, res, options, headerFooterData) {
+		const hookReturn = await plugins.hooks.fire(&#039;filter:middleware.renderAdminHeader&#039;, {
+			req,
+			res,
+			templateValues: headerFooterData, // TODO: deprecate
+			templateData: headerFooterData,
+			data: options,
+		});
+
+		return await req.app.renderAsync(&#039;admin/header&#039;, hookReturn.templateData);
+	}
+
+	async function renderAdminFooter(req, res, options, headerFooterData) {
+		const hookReturn = await plugins.hooks.fire(&#039;filter:middleware.renderAdminFooter&#039;, {
+			req,
+			res,
+			templateValues: headerFooterData, // TODO: deprecate
+			templateData: headerFooterData,
+			data: options,
+		});
+
+		return await req.app.renderAsync(&#039;admin/footer&#039;, hookReturn.templateData);
+	}
+
+	async function renderHeaderFooter(method, req, res, options, headerFooterData) {
+		let str = &#039;&#039;;
+		if (res.locals.renderHeader) {
+			if (method === &#039;renderHeader&#039;) {
+				str = await renderHeader(req, res, options, headerFooterData);
+			} else if (method === &#039;renderFooter&#039;) {
+				str = await renderFooter(req, res, options, headerFooterData);
+			}
+		} else if (res.locals.renderAdminHeader) {
+			if (method === &#039;renderHeader&#039;) {
+				str = await renderAdminHeader(req, res, options, headerFooterData);
+			} else if (method === &#039;renderFooter&#039;) {
+				str = await renderAdminFooter(req, res, options, headerFooterData);
+			}
+		}
+		return await translate(str, getLang(req, res));
+	}
+
+	function getLang(req, res) {
+		let language = (res.locals.config &amp;&amp; res.locals.config.userLang) || &#039;en-GB&#039;;
+		if (res.locals.renderAdminHeader) {
+			language = (res.locals.config &amp;&amp; res.locals.config.acpLang) || &#039;en-GB&#039;;
+		}
+		return req.query.lang ? validator.escape(String(req.query.lang)) : language;
+	}
+
+	async function translate(str, language) {
+		const translated = await translator.translate(str, language);
+		return translator.unescape(translated);
+	}
+
+	async function appendUnreadCounts({ uid, navigation, unreadData, query }) {
+		const originalRoutes = navigation.map(nav =&gt; nav.originalRoute);
+		const calls = {
+			unreadData: topics.getUnreadData({ uid: uid, query: query }),
+			unreadChatCount: messaging.getUnreadCount(uid),
+			unreadNotificationCount: user.notifications.getUnreadCount(uid),
+			unreadFlagCount: (async function () {
+				if (originalRoutes.includes(&#039;/flags&#039;) &amp;&amp; await user.isPrivileged(uid)) {
+					return flags.getCount({
+						uid,
+						query,
+						filters: {
+							quick: &#039;unresolved&#039;,
+							cid: (await user.isAdminOrGlobalMod(uid)) ? [] : (await user.getModeratedCids(uid)),
+						},
+					});
+				}
+				return 0;
+			}()),
+		};
+		const results = await utils.promiseParallel(calls);
+
+		const unreadCounts = results.unreadData.counts;
+		const unreadCount = {
+			topic: unreadCounts[&#039;&#039;] || 0,
+			newTopic: unreadCounts.new || 0,
+			watchedTopic: unreadCounts.watched || 0,
+			unrepliedTopic: unreadCounts.unreplied || 0,
+			mobileUnread: 0,
+			unreadUrl: &#039;/unread&#039;,
+			chat: results.unreadChatCount || 0,
+			notification: results.unreadNotificationCount || 0,
+			flags: results.unreadFlagCount || 0,
+		};
+
+		Object.keys(unreadCount).forEach((key) =&gt; {
+			if (unreadCount[key] &gt; 99) {
+				unreadCount[key] = &#039;99+&#039;;
+			}
+		});
+
+		const { tidsByFilter } = results.unreadData;
+		navigation = navigation.map((item) =&gt; {
+			function modifyNavItem(item, route, filter, content) {
+				if (item &amp;&amp; item.originalRoute === route) {
+					unreadData[filter] = _.zipObject(tidsByFilter[filter], tidsByFilter[filter].map(() =&gt; true));
+					item.content = content;
+					unreadCount.mobileUnread = content;
+					unreadCount.unreadUrl = route;
+					if (unreadCounts[filter] &gt; 0) {
+						item.iconClass += &#039; unread-count&#039;;
+					}
+				}
+			}
+			modifyNavItem(item, &#039;/unread&#039;, &#039;&#039;, unreadCount.topic);
+			modifyNavItem(item, &#039;/unread?filter=new&#039;, &#039;new&#039;, unreadCount.newTopic);
+			modifyNavItem(item, &#039;/unread?filter=watched&#039;, &#039;watched&#039;, unreadCount.watchedTopic);
+			modifyNavItem(item, &#039;/unread?filter=unreplied&#039;, &#039;unreplied&#039;, unreadCount.unrepliedTopic);
+
+			[&#039;flags&#039;].forEach((prop) =&gt; {
+				if (item &amp;&amp; item.originalRoute === `/${prop}` &amp;&amp; unreadCount[prop] &gt; 0) {
+					item.iconClass += &#039; unread-count&#039;;
+					item.content = unreadCount.flags;
+				}
+			});
+
+			return item;
+		});
+
+		return { navigation, unreadCount };
+	}
+
+
+	function modifyTitle(obj) {
+		const title = controllersHelpers.buildTitle(meta.config.homePageTitle || &#039;[[pages:home]]&#039;);
+		obj.browserTitle = title;
+
+		if (obj.metaTags) {
+			obj.metaTags.forEach((tag, i) =&gt; {
+				if (tag.property === &#039;og:title&#039;) {
+					obj.metaTags[i].content = title;
+				}
+			});
+		}
+
+		return title;
+	}
+
+	async function getAdminScripts() {
+		const scripts = await plugins.hooks.fire(&#039;filter:admin.scripts.get&#039;, []);
+		return scripts.map(script =&gt; ({ src: script }));
+	}
+
+	async function getLatestVersion() {
+		try {
+			return await versions.getLatestVersion();
+		} catch (err) {
+			winston.error(`[acp] Failed to fetch latest version${err.stack}`);
+		}
+		return null;
+	}
+};</textarea>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="container">
+    <p>.</p>
+  </div>
+</footer>
+
+<script type="text/html" id="complexity-popover-template">
+  <div class="complexity-notice">
+    Complexity : {{ cyclomatic }} <br>
+    Length : {{ halstead.length }} <br>
+    Difficulty : {{ halstead.difficulty.toFixed(2) }} <br>
+    Est # bugs : {{ halstead.bugs.toFixed(2) }}<br>
+  </div>
+</script>
+
+<script type="text/javascript" src="../../assets/scripts/bundles/core-bundle.js"></script>
+<script type="text/javascript" src="../../assets/scripts/bundles/codemirror.js"></script>
+<script type="text/javascript" src="../../assets/scripts/codemirror.markpopovertext.js"></script>
+<script type="text/javascript" src="report.js"></script>
+<script type="text/javascript" src="report.history.js"></script>
+<script type="text/javascript" src="../../assets/scripts/plato-file.js"></script>
+</body>
+</html>

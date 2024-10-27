@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Plato - src/api/chats.js</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="">
+  <meta name="author" content="">
+
+  <!--[if lt IE 9]>
+  <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+  <![endif]-->
+
+  <link href="../../assets/css/vendor/morris.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/bootstrap.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/font-awesome.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/codemirror.css" rel="stylesheet">
+  <link href="../../assets/css/plato.css" rel="stylesheet">
+  <link href="../../assets/css/plato-file.css" rel="stylesheet">
+
+</head>
+
+<body>
+
+<div class="navbar navbar-fixed-top">
+  <div class="container">
+    <a class="navbar-brand" href="http://github.com/es-analysis/plato">Plato on Github</a>
+    <ul class="nav navbar-nav">
+      <li>
+        <a href="../../index.html">Report Home</a>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div class="jumbotron">
+  <div class="container">
+    <h1>src/api/chats.js</h1>
+  </div>
+</div>
+
+<div class="container aggregate-stats">
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="header">Maintainability <a href="http://blogs.msdn.com/b/codeanalysis/archive/2007/11/20/maintainability-index-range-and-meaning.aspx"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="A value between 0 and 100 that represents the relative ease of maintaining the code. A high value means better maintainability." data-original-title="Maintainability Index"  data-container="body"></i></a></h2>
+      <p class="stat">62.46</p>
+    </div>
+    <div class="col-md-6">
+      <h2 class="header">Lines of code <i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Source Lines of Code / Logical Lines of Code" data-original-title="SLOC/LSLOC" data-container="body"></i></h2>
+      <p class="stat">424</p>
+    </div>
+  </div>
+  <div class="row historical">
+    <div class="col-md-6">
+      <p id="chart_historical_maint" class="chart"></p>
+    </div>
+    <div class="col-md-6">
+      <p id="chart_historical_sloc" class="chart"></p>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="header">Difficulty  <a href="http://en.wikipedia.org/wiki/Halstead_complexity_measures"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="The difficulty measure is related to the difficulty of the program to write or understand." data-original-title="Difficulty" data-container="body"></i></a></h2>
+      <p class="stat">75.93</p>
+    </div>
+    <div class="col-md-6">
+      <h2 class="header">Estimated Errors  <a href="http://en.wikipedia.org/wiki/Halstead_complexity_measures"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Halstead's delivered bugs is an estimate for the number of errors in the implementation." data-original-title="Delivered Bugs" data-container="body"></i></a></h2>
+      <p class="stat">5.77</p>
+    </div>
+  </div>
+</div>
+
+<div class="container charts">
+  <div class="row">
+    <h2 class="header">Function weight</h2>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h3 class="chart-header">By Complexity <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="This metric counts the number of distinct paths through a block of code. Lower values are better." data-original-title="Cyclomatic Complexity" data-container="body"></i></a></h3>
+      <div id="fn-by-complexity" class="stat"></div>
+    </div>
+    <div class="col-md-6">
+      <h3 class="chart-header">By SLOC  <i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Source Lines of Code / Logical Lines of Code" data-original-title="SLOC/LSLOC" data-container="body"></i></h3>
+      <div id="fn-by-sloc" class="stat"></div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="row">
+    <textarea id="file-source" class="col-md-12">&#039;use strict&#039;;
+
+const validator = require(&#039;validator&#039;);
+const winston = require(&#039;winston&#039;);
+
+const db = require(&#039;../database&#039;);
+const user = require(&#039;../user&#039;);
+const meta = require(&#039;../meta&#039;);
+const messaging = require(&#039;../messaging&#039;);
+const notifications = require(&#039;../notifications&#039;);
+const privileges = require(&#039;../privileges&#039;);
+const plugins = require(&#039;../plugins&#039;);
+const utils = require(&#039;../utils&#039;);
+
+const websockets = require(&#039;../socket.io&#039;);
+const socketHelpers = require(&#039;../socket.io/helpers&#039;);
+
+const chatsAPI = module.exports;
+
+async function rateLimitExceeded(caller, field) {
+	const session = caller.request ? caller.request.session : caller.session; // socket vs req
+	const now = Date.now();
+	const [isPrivileged, reputation] = await Promise.all([
+		user.isPrivileged(caller.uid),
+		user.getUserField(caller.uid, &#039;reputation&#039;),
+	]);
+	const newbie = !isPrivileged &amp;&amp; meta.config.newbieReputationThreshold &gt; reputation;
+	const delay = newbie ? meta.config.newbieChatMessageDelay : meta.config.chatMessageDelay;
+	session[field] = session[field] || 0;
+
+	if (now - session[field] &lt; delay) {
+		return true;
+	}
+
+	session[field] = now;
+	return false;
+}
+
+chatsAPI.list = async (caller, { uid = caller.uid, start, stop, page, perPage } = {}) =&gt; {
+	if ((!utils.isNumber(start) || !utils.isNumber(stop)) &amp;&amp; !utils.isNumber(page)) {
+		throw new Error(&#039;[[error:invalid-data]]&#039;);
+	}
+
+	if (!start &amp;&amp; !stop &amp;&amp; page) {
+		winston.warn(&#039;[api/chats] Sending `page` and `perPage` to .list() is deprecated in favour of `start` and `stop`. The deprecated parameters will be removed in v4.&#039;);
+		start = Math.max(0, page - 1) * perPage;
+		stop = start + perPage - 1;
+	}
+
+	return await messaging.getRecentChats(caller.uid, uid || caller.uid, start, stop);
+};
+
+chatsAPI.create = async function (caller, data) {
+	if (await rateLimitExceeded(caller, &#039;lastChatRoomCreateTime&#039;)) {
+		throw new Error(&#039;[[error:too-many-messages]]&#039;);
+	}
+	if (!data) {
+		throw new Error(&#039;[[error:invalid-data]]&#039;);
+	}
+
+	const isPublic = data.type === &#039;public&#039;;
+	const isAdmin = await user.isAdministrator(caller.uid);
+	if (isPublic &amp;&amp; !isAdmin) {
+		throw new Error(&#039;[[error:no-privileges]]&#039;);
+	}
+
+	if (!data.uids || !Array.isArray(data.uids)) {
+		throw new Error(`[[error:wrong-parameter-type, uids, ${typeof data.uids}, Array]]`);
+	}
+
+	if (!isPublic &amp;&amp; !data.uids.length) {
+		throw new Error(&#039;[[error:no-users-selected]]&#039;);
+	}
+	if (isPublic &amp;&amp; (!Array.isArray(data.groups) || !data.groups.length)) {
+		throw new Error(&#039;[[error:no-groups-selected]]&#039;);
+	}
+
+	data.notificationSetting = isPublic ?
+		messaging.notificationSettings.ATMENTION :
+		messaging.notificationSettings.ALLMESSAGES;
+
+	await Promise.all(data.uids.map(uid =&gt; messaging.canMessageUser(caller.uid, uid)));
+	const roomId = await messaging.newRoom(caller.uid, data);
+
+	return await messaging.getRoomData(roomId);
+};
+
+chatsAPI.getUnread = async (caller) =&gt; {
+	const count = await messaging.getUnreadCount(caller.uid);
+	return { count };
+};
+
+chatsAPI.sortPublicRooms = async (caller, { roomIds, scores }) =&gt; {
+	[roomIds, scores].forEach((arr) =&gt; {
+		if (!Array.isArray(arr) || !arr.every(value =&gt; isFinite(value))) {
+			throw new Error(&#039;[[error:invalid-data]]&#039;);
+		}
+	});
+
+	const isAdmin = await user.isAdministrator(caller.uid);
+	if (!isAdmin) {
+		throw new Error(&#039;[[error:no-privileges]]&#039;);
+	}
+
+	await db.sortedSetAdd(`chat:rooms:public:order`, scores, roomIds);
+	require(&#039;../cache&#039;).del(`chat:rooms:public:order:all`);
+};
+
+chatsAPI.get = async (caller, { uid, roomId }) =&gt; await messaging.loadRoom(caller.uid, { uid, roomId });
+
+chatsAPI.post = async (caller, data) =&gt; {
+	if (await rateLimitExceeded(caller, &#039;lastChatMessageTime&#039;)) {
+		throw new Error(&#039;[[error:too-many-messages]]&#039;);
+	}
+	if (!data || !data.roomId || !caller.uid) {
+		throw new Error(&#039;[[error:invalid-data]]&#039;);
+	}
+
+	({ data } = await plugins.hooks.fire(&#039;filter:messaging.send&#039;, {
+		data,
+		uid: caller.uid,
+	}));
+
+	await messaging.canMessageRoom(caller.uid, data.roomId);
+	const message = await messaging.sendMessage({
+		uid: caller.uid,
+		roomId: data.roomId,
+		content: data.message,
+		toMid: data.toMid,
+		timestamp: Date.now(),
+		ip: caller.ip,
+	});
+	messaging.notifyUsersInRoom(caller.uid, data.roomId, message);
+	user.updateOnlineUsers(caller.uid);
+
+	return message;
+};
+
+chatsAPI.update = async (caller, data) =&gt; {
+	if (!data || !data.roomId) {
+		throw new Error(&#039;[[error:invalid-data]]&#039;);
+	}
+
+	if (data.hasOwnProperty(&#039;name&#039;)) {
+		if (!data.name &amp;&amp; data.name !== &#039;&#039;) {
+			throw new Error(&#039;[[error:invalid-data]]&#039;);
+		}
+		await messaging.renameRoom(caller.uid, data.roomId, data.name);
+	}
+	const [roomData, isAdmin] = await Promise.all([
+		messaging.getRoomData(data.roomId),
+		user.isAdministrator(caller.uid),
+	]);
+	if (!roomData) {
+		throw new Error(&#039;[[error:invalid-data]]&#039;);
+	}
+	if (data.hasOwnProperty(&#039;groups&#039;)) {
+		if (roomData.public &amp;&amp; isAdmin) {
+			await db.setObjectField(`chat:room:${data.roomId}`, &#039;groups&#039;, JSON.stringify(data.groups));
+		}
+	}
+	if (data.hasOwnProperty(&#039;notificationSetting&#039;) &amp;&amp; isAdmin) {
+		await db.setObjectField(`chat:room:${data.roomId}`, &#039;notificationSetting&#039;, data.notificationSetting);
+	}
+	const loadedRoom = await messaging.loadRoom(caller.uid, {
+		roomId: data.roomId,
+	});
+	if (data.hasOwnProperty(&#039;name&#039;)) {
+		const ioRoom = require(&#039;../socket.io&#039;).in(`chat_room_${data.roomId}`);
+		if (ioRoom) {
+			ioRoom.emit(&#039;event:chats.roomRename&#039;, {
+				roomId: data.roomId,
+				newName: validator.escape(String(data.name)),
+				chatWithMessage: loadedRoom.chatWithMessage,
+			});
+		}
+	}
+	return loadedRoom;
+};
+
+chatsAPI.rename = async (caller, data) =&gt; {
+	if (!data || !data.roomId || !data.name) {
+		throw new Error(&#039;[[error:invalid-data]]&#039;);
+	}
+	return await chatsAPI.update(caller, data);
+};
+
+chatsAPI.mark = async (caller, data) =&gt; {
+	if (!caller.uid || !data || !data.roomId) {
+		throw new Error(&#039;[[error:invalid-data]]&#039;);
+	}
+	const { roomId, state } = data;
+	if (state) {
+		await messaging.markUnread([caller.uid], roomId);
+	} else {
+		await messaging.markRead(caller.uid, roomId);
+		socketHelpers.emitToUids(&#039;event:chats.markedAsRead&#039;, { roomId: roomId }, [caller.uid]);
+		const nids = await user.notifications.getUnreadByField(caller.uid, &#039;roomId&#039;, [roomId]);
+		await notifications.markReadMultiple(nids, caller.uid);
+		user.notifications.pushCount(caller.uid);
+	}
+
+	socketHelpers.emitToUids(&#039;event:chats.mark&#039;, { roomId, state }, [caller.uid]);
+	messaging.pushUnreadCount(caller.uid);
+};
+
+chatsAPI.watch = async (caller, { roomId, state }) =&gt; {
+	const inRoom = await messaging.isUserInRoom(caller.uid, roomId);
+	if (!inRoom) {
+		throw new Error(&#039;[[error:no-privileges]]&#039;);
+	}
+
+	await messaging.setUserNotificationSetting(caller.uid, roomId, state);
+};
+
+chatsAPI.toggleTyping = async (caller, { roomId, typing }) =&gt; {
+	if (!utils.isNumber(roomId) || typeof typing !== &#039;boolean&#039;) {
+		throw new Error(&#039;[[error:invalid-data]]&#039;);
+	}
+
+	const [isInRoom, username] = await Promise.all([
+		messaging.isUserInRoom(caller.uid, roomId),
+		user.getUserField(caller.uid, &#039;username&#039;),
+	]);
+	if (!isInRoom) {
+		throw new Error(&#039;[[error:no-privileges]]&#039;);
+	}
+
+	websockets.in(`chat_room_${roomId}`).emit(&#039;event:chats.typing&#039;, {
+		uid: caller.uid,
+		roomId,
+		typing,
+		username,
+	});
+};
+
+chatsAPI.users = async (caller, data) =&gt; {
+	const start = data.hasOwnProperty(&#039;start&#039;) ? data.start : 0;
+	const stop = start + 39;
+	const io = require(&#039;../socket.io&#039;);
+	const [isOwner, isUserInRoom, users, isAdmin, onlineUids] = await Promise.all([
+		messaging.isRoomOwner(caller.uid, data.roomId),
+		messaging.isUserInRoom(caller.uid, data.roomId),
+		messaging.getUsersInRoomFromSet(
+			`chat:room:${data.roomId}:uids:online`, data.roomId, start, stop, true
+		),
+		user.isAdministrator(caller.uid),
+		io.getUidsInRoom(`chat_room_${data.roomId}`),
+	]);
+	if (!isUserInRoom) {
+		throw new Error(&#039;[[error:no-privileges]]&#039;);
+	}
+	users.forEach((user) =&gt; {
+		const isSelf = parseInt(user.uid, 10) === parseInt(caller.uid, 10);
+		user.canKick = isOwner &amp;&amp; !isSelf;
+		user.canToggleOwner = (isAdmin || isOwner) &amp;&amp; !isSelf;
+		user.online = parseInt(user.uid, 10) === parseInt(caller.uid, 10) || onlineUids.includes(String(user.uid));
+	});
+	return { users };
+};
+
+chatsAPI.invite = async (caller, data) =&gt; {
+	if (!data || !data.roomId || !Array.isArray(data.uids)) {
+		throw new Error(&#039;[[error:invalid-data]]&#039;);
+	}
+	const roomData = await messaging.getRoomData(data.roomId);
+	if (!roomData) {
+		throw new Error(&#039;[[error:invalid-data]]&#039;);
+	}
+	const userCount = await messaging.getUserCountInRoom(data.roomId);
+	const maxUsers = meta.config.maximumUsersInChatRoom;
+	if (!roomData.public &amp;&amp; maxUsers &amp;&amp; userCount &gt;= maxUsers) {
+		throw new Error(&#039;[[error:cant-add-more-users-to-chat-room]]&#039;);
+	}
+
+	const uidsExist = await user.exists(data.uids);
+	if (!uidsExist.every(Boolean)) {
+		throw new Error(&#039;[[error:no-user]]&#039;);
+	}
+	await Promise.all(data.uids.map(uid =&gt; messaging.canMessageUser(caller.uid, uid)));
+	await messaging.addUsersToRoom(caller.uid, data.uids, data.roomId);
+
+	delete data.uids;
+	return chatsAPI.users(caller, data);
+};
+
+chatsAPI.kick = async (caller, data) =&gt; {
+	if (!data || !data.roomId) {
+		throw new Error(&#039;[[error:invalid-data]]&#039;);
+	}
+	const uidsExist = await user.exists(data.uids);
+	if (!uidsExist.every(Boolean)) {
+		throw new Error(&#039;[[error:no-user]]&#039;);
+	}
+
+	// Additional checks if kicking vs leaving
+	if (data.uids.length === 1 &amp;&amp; parseInt(data.uids[0], 10) === caller.uid) {
+		await messaging.leaveRoom([caller.uid], data.roomId);
+		await socketHelpers.removeSocketsFromRoomByUids([caller.uid], data.roomId);
+		return [];
+	}
+	await messaging.removeUsersFromRoom(caller.uid, data.uids, data.roomId);
+	await socketHelpers.removeSocketsFromRoomByUids(data.uids, data.roomId);
+	delete data.uids;
+	return chatsAPI.users(caller, data);
+};
+
+chatsAPI.toggleOwner = async (caller, { roomId, uid, state }) =&gt; {
+	const [isAdmin, inRoom, isRoomOwner] = await Promise.all([
+		user.isAdministrator(caller.uid),
+		messaging.isUserInRoom(caller.uid, roomId),
+		messaging.isRoomOwner(caller.uid, roomId),
+	]);
+
+	if (!isAdmin &amp;&amp; (!inRoom || !isRoomOwner)) {
+		throw new Error(&#039;[[error:no-privileges]]&#039;);
+	}
+
+	return await messaging.toggleOwner(uid, roomId, state);
+};
+
+chatsAPI.listMessages = async (caller, { uid = caller.uid, roomId, start = 0, direction = null } = {}) =&gt; {
+	if (!roomId) {
+		throw new Error(&#039;[[error:invalid-data]]&#039;);
+	}
+
+	const count = 50;
+	let stop = start + count - 1;
+	if (direction === 1 || direction === -1) {
+		const msgCount = await db.getObjectField(`chat:room:${roomId}`, &#039;messageCount&#039;);
+		start = msgCount - start;
+		if (direction === 1) {
+			start -= count + 1;
+		}
+		stop = start + count - 1;
+		start = Math.max(0, start);
+		if (stop &lt;= -1) {
+			return { messages: [] };
+		}
+		stop = Math.max(0, stop);
+	}
+
+	const messages = await messaging.getMessages({
+		callerUid: caller.uid,
+		uid,
+		roomId,
+		start,
+		count: stop - start + 1,
+	});
+
+	return { messages };
+};
+
+chatsAPI.getPinnedMessages = async (caller, { start, roomId }) =&gt; {
+	start = parseInt(start, 10) || 0;
+	const isInRoom = await messaging.isUserInRoom(caller.uid, roomId);
+	if (!isInRoom) {
+		throw new Error(&#039;[[error:no-privileges]]&#039;);
+	}
+	const messages = await messaging.getPinnedMessages(roomId, caller.uid, start, start + 49);
+	return { messages };
+};
+
+chatsAPI.getMessage = async (caller, { mid, roomId } = {}) =&gt; {
+	if (!mid || !roomId) {
+		throw new Error(&#039;[[error:invalid-data]]&#039;);
+	}
+
+	const messages = await messaging.getMessagesData([mid], caller.uid, roomId, false);
+	return messages.pop();
+};
+
+chatsAPI.getRawMessage = async (caller, { mid, roomId } = {}) =&gt; {
+	if (!mid || !roomId) {
+		throw new Error(&#039;[[error:invalid-data]]&#039;);
+	}
+
+	const [isAdmin, canViewMessage, inRoom] = await Promise.all([
+		user.isAdministrator(caller.uid),
+		messaging.canViewMessage(mid, roomId, caller.uid),
+		messaging.isUserInRoom(caller.uid, roomId),
+	]);
+
+	if (!isAdmin &amp;&amp; (!inRoom || !canViewMessage)) {
+		throw new Error(&#039;[[error:not-allowed]]&#039;);
+	}
+
+	const content = await messaging.getMessageField(mid, &#039;content&#039;);
+	return { content };
+};
+
+chatsAPI.getIpAddress = async (caller, { mid }) =&gt; {
+	const allowed = await privileges.global.can(&#039;view:users:info&#039;, caller.uid);
+	if (!allowed) {
+		throw new Error(&#039;[[error:no-privileges]]&#039;);
+	}
+	const ip = await messaging.getMessageField(mid, &#039;ip&#039;);
+	return { ip };
+};
+
+chatsAPI.editMessage = async (caller, { mid, roomId, message }) =&gt; {
+	await messaging.canEdit(mid, caller.uid);
+	await messaging.editMessage(caller.uid, mid, roomId, message);
+};
+
+chatsAPI.deleteMessage = async (caller, { mid }) =&gt; {
+	await messaging.canDelete(mid, caller.uid);
+	await messaging.deleteMessage(mid, caller.uid);
+};
+
+chatsAPI.restoreMessage = async (caller, { mid }) =&gt; {
+	await messaging.canDelete(mid, caller.uid);
+	await messaging.restoreMessage(mid, caller.uid);
+};
+
+chatsAPI.pinMessage = async (caller, { roomId, mid }) =&gt; {
+	await messaging.canPin(roomId, caller.uid);
+	await messaging.pinMessage(mid, roomId);
+};
+
+chatsAPI.unpinMessage = async (caller, { roomId, mid }) =&gt; {
+	await messaging.canPin(roomId, caller.uid);
+	await messaging.unpinMessage(mid, roomId);
+};</textarea>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="container">
+    <p>.</p>
+  </div>
+</footer>
+
+<script type="text/html" id="complexity-popover-template">
+  <div class="complexity-notice">
+    Complexity : {{ cyclomatic }} <br>
+    Length : {{ halstead.length }} <br>
+    Difficulty : {{ halstead.difficulty.toFixed(2) }} <br>
+    Est # bugs : {{ halstead.bugs.toFixed(2) }}<br>
+  </div>
+</script>
+
+<script type="text/javascript" src="../../assets/scripts/bundles/core-bundle.js"></script>
+<script type="text/javascript" src="../../assets/scripts/bundles/codemirror.js"></script>
+<script type="text/javascript" src="../../assets/scripts/codemirror.markpopovertext.js"></script>
+<script type="text/javascript" src="report.js"></script>
+<script type="text/javascript" src="report.history.js"></script>
+<script type="text/javascript" src="../../assets/scripts/plato-file.js"></script>
+</body>
+</html>

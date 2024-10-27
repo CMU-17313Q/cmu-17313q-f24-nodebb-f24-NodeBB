@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Plato - src/messaging/index.js</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="">
+  <meta name="author" content="">
+
+  <!--[if lt IE 9]>
+  <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+  <![endif]-->
+
+  <link href="../../assets/css/vendor/morris.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/bootstrap.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/font-awesome.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/codemirror.css" rel="stylesheet">
+  <link href="../../assets/css/plato.css" rel="stylesheet">
+  <link href="../../assets/css/plato-file.css" rel="stylesheet">
+
+</head>
+
+<body>
+
+<div class="navbar navbar-fixed-top">
+  <div class="container">
+    <a class="navbar-brand" href="http://github.com/es-analysis/plato">Plato on Github</a>
+    <ul class="nav navbar-nav">
+      <li>
+        <a href="../../index.html">Report Home</a>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div class="jumbotron">
+  <div class="container">
+    <h1>src/messaging/index.js</h1>
+  </div>
+</div>
+
+<div class="container aggregate-stats">
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="header">Maintainability <a href="http://blogs.msdn.com/b/codeanalysis/archive/2007/11/20/maintainability-index-range-and-meaning.aspx"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="A value between 0 and 100 that represents the relative ease of maintaining the code. A high value means better maintainability." data-original-title="Maintainability Index"  data-container="body"></i></a></h2>
+      <p class="stat">69.20</p>
+    </div>
+    <div class="col-md-6">
+      <h2 class="header">Lines of code <i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Source Lines of Code / Logical Lines of Code" data-original-title="SLOC/LSLOC" data-container="body"></i></h2>
+      <p class="stat">469</p>
+    </div>
+  </div>
+  <div class="row historical">
+    <div class="col-md-6">
+      <p id="chart_historical_maint" class="chart"></p>
+    </div>
+    <div class="col-md-6">
+      <p id="chart_historical_sloc" class="chart"></p>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="header">Difficulty  <a href="http://en.wikipedia.org/wiki/Halstead_complexity_measures"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="The difficulty measure is related to the difficulty of the program to write or understand." data-original-title="Difficulty" data-container="body"></i></a></h2>
+      <p class="stat">56.78</p>
+    </div>
+    <div class="col-md-6">
+      <h2 class="header">Estimated Errors  <a href="http://en.wikipedia.org/wiki/Halstead_complexity_measures"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Halstead's delivered bugs is an estimate for the number of errors in the implementation." data-original-title="Delivered Bugs" data-container="body"></i></a></h2>
+      <p class="stat">6.15</p>
+    </div>
+  </div>
+</div>
+
+<div class="container charts">
+  <div class="row">
+    <h2 class="header">Function weight</h2>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h3 class="chart-header">By Complexity <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="This metric counts the number of distinct paths through a block of code. Lower values are better." data-original-title="Cyclomatic Complexity" data-container="body"></i></a></h3>
+      <div id="fn-by-complexity" class="stat"></div>
+    </div>
+    <div class="col-md-6">
+      <h3 class="chart-header">By SLOC  <i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Source Lines of Code / Logical Lines of Code" data-original-title="SLOC/LSLOC" data-container="body"></i></h3>
+      <div id="fn-by-sloc" class="stat"></div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="row">
+    <textarea id="file-source" class="col-md-12">&#039;use strict&#039;;
+
+const _ = require(&#039;lodash&#039;);
+const validator = require(&#039;validator&#039;);
+const nconf = require(&#039;nconf&#039;);
+const db = require(&#039;../database&#039;);
+const user = require(&#039;../user&#039;);
+const groups = require(&#039;../groups&#039;);
+const privileges = require(&#039;../privileges&#039;);
+const plugins = require(&#039;../plugins&#039;);
+const meta = require(&#039;../meta&#039;);
+const utils = require(&#039;../utils&#039;);
+const translator = require(&#039;../translator&#039;);
+const cache = require(&#039;../cache&#039;);
+
+const relative_path = nconf.get(&#039;relative_path&#039;);
+
+const Messaging = module.exports;
+
+require(&#039;./data&#039;)(Messaging);
+require(&#039;./create&#039;)(Messaging);
+require(&#039;./delete&#039;)(Messaging);
+require(&#039;./edit&#039;)(Messaging);
+require(&#039;./rooms&#039;)(Messaging);
+require(&#039;./unread&#039;)(Messaging);
+require(&#039;./notifications&#039;)(Messaging);
+require(&#039;./pins&#039;)(Messaging);
+
+Messaging.notificationSettings = Object.create(null);
+Messaging.notificationSettings.NONE = 1;
+Messaging.notificationSettings.ATMENTION = 2;
+Messaging.notificationSettings.ALLMESSAGES = 3;
+
+Messaging.messageExists = async mid =&gt; db.exists(`message:${mid}`);
+
+Messaging.getMessages = async (params) =&gt; {
+	const { callerUid, uid, roomId } = params;
+	const isNew = params.isNew || false;
+	const start = params.hasOwnProperty(&#039;start&#039;) ? params.start : 0;
+	const stop = parseInt(start, 10) + ((params.count || 50) - 1);
+
+	const ok = await canGet(&#039;filter:messaging.canGetMessages&#039;, callerUid, uid);
+	if (!ok) {
+		return;
+	}
+	const [mids, messageCount] = await Promise.all([
+		getMessageIds(roomId, uid, start, stop),
+		db.getObjectField(`chat:room:${roomId}`, &#039;messageCount&#039;),
+	]);
+	if (!mids.length) {
+		return [];
+	}
+	const count = parseInt(messageCount, 10) || 0;
+	const indices = {};
+	mids.forEach((mid, index) =&gt; {
+		indices[mid] = count - start - index - 1;
+	});
+	mids.reverse();
+
+	const messageData = await Messaging.getMessagesData(mids, uid, roomId, isNew);
+	messageData.forEach((msg) =&gt; {
+		msg.index = indices[msg.messageId.toString()];
+	});
+
+	return messageData;
+};
+
+async function getMessageIds(roomId, uid, start, stop) {
+	const isPublic = await db.getObjectField(`chat:room:${roomId}`, &#039;public&#039;);
+	if (parseInt(isPublic, 10) === 1) {
+		return await db.getSortedSetRevRange(
+			`chat:room:${roomId}:mids`, start, stop,
+		);
+	}
+	const userjoinTimestamp = await db.sortedSetScore(`chat:room:${roomId}:uids`, uid);
+	return await db.getSortedSetRevRangeByScore(
+		`chat:room:${roomId}:mids`, start, stop - start + 1, &#039;+inf&#039;, userjoinTimestamp
+	);
+}
+
+async function canGet(hook, callerUid, uid) {
+	const data = await plugins.hooks.fire(hook, {
+		callerUid: callerUid,
+		uid: uid,
+		canGet: parseInt(callerUid, 10) === parseInt(uid, 10),
+	});
+
+	return data ? data.canGet : false;
+}
+
+Messaging.parse = async (message, fromuid, uid, roomId, isNew) =&gt; {
+	const parsed = await plugins.hooks.fire(&#039;filter:parse.raw&#039;, String(message || &#039;&#039;));
+	let messageData = {
+		message: message,
+		parsed: parsed,
+		fromuid: fromuid,
+		uid: uid,
+		roomId: roomId,
+		isNew: isNew,
+		parsedMessage: parsed,
+	};
+
+	messageData = await plugins.hooks.fire(&#039;filter:messaging.parse&#039;, messageData);
+	return messageData ? messageData.parsedMessage : &#039;&#039;;
+};
+
+Messaging.isNewSet = async (uid, roomId, timestamp) =&gt; {
+	const setKey = `chat:room:${roomId}:mids`;
+	const messages = await db.getSortedSetRevRangeWithScores(setKey, 0, 0);
+	if (messages &amp;&amp; messages.length) {
+		return parseInt(timestamp, 10) &gt; parseInt(messages[0].score, 10) + Messaging.newMessageCutoff;
+	}
+	return true;
+};
+
+Messaging.getPublicRoomIdsFromSet = async function (set) {
+	const cacheKey = `${set}:all`;
+	let allRoomIds = cache.get(cacheKey);
+	if (allRoomIds === undefined) {
+		allRoomIds = await db.getSortedSetRange(set, 0, -1);
+		cache.set(cacheKey, allRoomIds);
+	}
+	return allRoomIds.slice();
+};
+
+Messaging.getPublicRooms = async (callerUid, uid) =&gt; {
+	const ok = await canGet(&#039;filter:messaging.canGetPublicChats&#039;, callerUid, uid);
+	if (!ok) {
+		return null;
+	}
+
+	const allRoomIds = await Messaging.getPublicRoomIdsFromSet(&#039;chat:rooms:public:order&#039;);
+	const allRoomData = await Messaging.getRoomsData(allRoomIds);
+	const isAdmin = await privileges.users.isAdministrator(callerUid);
+	const checks = await Promise.all(
+		allRoomData.map(
+			room =&gt; room &amp;&amp; (
+				!Array.isArray(room.groups) ||
+				!room.groups.length ||
+				isAdmin ||
+				groups.isMemberOfAny(uid, room &amp;&amp; room.groups)
+			)
+		)
+	);
+
+	const roomData = allRoomData.filter((room, idx) =&gt; room &amp;&amp; checks[idx]);
+	const roomIds = roomData.map(r =&gt; r.roomId);
+	const userReadTimestamps = await db.getObjectFields(
+		`uid:${uid}:chat:rooms:read`,
+		roomIds,
+	);
+
+	const maxUnread = 50;
+	const unreadCounts = await Promise.all(roomIds.map(async (roomId) =&gt; {
+		const cutoff = userReadTimestamps[roomId] || &#039;-inf&#039;;
+		const unreadMids = await db.getSortedSetRangeByScore(
+			`chat:room:${roomId}:mids`, 0, maxUnread + 1, cutoff, &#039;+inf&#039;
+		);
+		return unreadMids.length;
+	}));
+
+	roomData.forEach((r, idx) =&gt; {
+		const count = unreadCounts[idx];
+		r.unreadCountText = count &gt; maxUnread ? `${maxUnread}+` : String(count);
+		r.unreadCount = count;
+		r.unread = count &gt; 0;
+		r.icon = Messaging.getRoomIcon(r);
+	});
+
+	return roomData;
+};
+
+Messaging.getRecentChats = async (callerUid, uid, start, stop) =&gt; {
+	const ok = await canGet(&#039;filter:messaging.canGetRecentChats&#039;, callerUid, uid);
+	if (!ok) {
+		throw new Error(&#039;[[error:no-privileges]]&#039;);
+	}
+
+	const roomIds = await db.getSortedSetRevRange(`uid:${uid}:chat:rooms`, start, stop);
+
+	async function getUsers(roomIds) {
+		const arrayOfUids = await Promise.all(
+			roomIds.map(roomId =&gt; Messaging.getUidsInRoom(roomId, 0, 9))
+		);
+		const uniqUids = _.uniq(_.flatten(arrayOfUids)).filter(
+			_uid =&gt; _uid &amp;&amp; parseInt(_uid, 10) !== parseInt(uid, 10)
+		);
+		const uidToUser = _.zipObject(
+			uniqUids,
+			await user.getUsersFields(uniqUids, [
+				&#039;uid&#039;, &#039;username&#039;, &#039;userslug&#039;, &#039;picture&#039;, &#039;status&#039;, &#039;lastonline&#039;,
+			])
+		);
+		return arrayOfUids.map(uids =&gt; uids.map(uid =&gt; uidToUser[uid]));
+	}
+
+	const results = await utils.promiseParallel({
+		roomData: Messaging.getRoomsData(roomIds),
+		unread: db.isSortedSetMembers(`uid:${uid}:chat:rooms:unread`, roomIds),
+		users: getUsers(roomIds),
+		teasers: Messaging.getTeasers(uid, roomIds),
+		settings: user.getSettings(uid),
+	});
+
+	await Promise.all(results.roomData.map(async (room, index) =&gt; {
+		if (room) {
+			room.users = results.users[index];
+			room.groupChat = room.users.length &gt; 2;
+			room.unread = results.unread[index];
+			room.teaser = results.teasers[index];
+
+			room.users.forEach((userData) =&gt; {
+				if (userData &amp;&amp; parseInt(userData.uid, 10)) {
+					userData.status = user.getStatus(userData);
+				}
+			});
+			room.users = room.users.filter(user =&gt; user &amp;&amp; parseInt(user.uid, 10));
+			room.lastUser = room.users[0];
+			room.usernames = Messaging.generateUsernames(room, uid);
+			room.chatWithMessage = await Messaging.generateChatWithMessage(room, uid, results.settings.userLang);
+		}
+	}));
+
+	results.roomData = results.roomData.filter(Boolean);
+	const ref = { rooms: results.roomData, nextStart: stop + 1 };
+	return await plugins.hooks.fire(&#039;filter:messaging.getRecentChats&#039;, {
+		rooms: ref.rooms,
+		nextStart: ref.nextStart,
+		uid: uid,
+		callerUid: callerUid,
+	});
+};
+
+Messaging.generateUsernames = function (room, excludeUid) {
+	const users = room.users.filter(u =&gt; u &amp;&amp; parseInt(u.uid, 10) !== excludeUid);
+	const usernames = users.map(u =&gt; u.username);
+	if (users.length &gt; 3) {
+		return translator.compile(
+			&#039;modules:chat.usernames-and-x-others&#039;,
+			usernames.slice(0, 2).join(&#039;, &#039;),
+			room.userCount - 2
+		);
+	}
+	return usernames.join(&#039;, &#039;);
+};
+
+Messaging.generateChatWithMessage = async function (room, callerUid, userLang) {
+	const users = room.users.filter(u =&gt; u &amp;&amp; parseInt(u.uid, 10) !== callerUid);
+	const usernames = users.map(u =&gt; `&lt;a href=&quot;${relative_path}/uid/${u.uid}&quot;&gt;${u.username}&lt;/a&gt;`);
+	let compiled = &#039;&#039;;
+	if (!users.length) {
+		return &#039;[[modules:chat.no-users-in-room]]&#039;;
+	}
+	if (users.length &gt; 3) {
+		compiled = translator.compile(
+			&#039;modules:chat.chat-with-usernames-and-x-others&#039;,
+			usernames.slice(0, 2).join(&#039;, &#039;),
+			room.userCount - 2
+		);
+	} else {
+		compiled = translator.compile(
+			&#039;modules:chat.chat-with-usernames&#039;,
+			usernames.join(&#039;, &#039;),
+		);
+	}
+	return utils.decodeHTMLEntities(await translator.translate(compiled, userLang));
+};
+
+Messaging.getTeaser = async (uid, roomId) =&gt; {
+	const teasers = await Messaging.getTeasers(uid, [roomId]);
+	return teasers[0];
+};
+
+Messaging.getTeasers = async (uid, roomIds) =&gt; {
+	const mids = await Promise.all(
+		roomIds.map(roomId =&gt; Messaging.getLatestUndeletedMessage(uid, roomId))
+	);
+	const [teasers, blockedUids] = await Promise.all([
+		Messaging.getMessagesFields(mids, [&#039;fromuid&#039;, &#039;content&#039;, &#039;timestamp&#039;]),
+		user.blocks.list(uid),
+	]);
+	const uids = _.uniq(
+		teasers.map(t =&gt; t &amp;&amp; t.fromuid).filter(uid =&gt; uid &amp;&amp; !blockedUids.includes(uid))
+	);
+
+	const userMap = _.zipObject(
+		uids,
+		await user.getUsersFields(uids, [
+			&#039;uid&#039;, &#039;username&#039;, &#039;userslug&#039;, &#039;picture&#039;, &#039;status&#039;, &#039;lastonline&#039;,
+		])
+	);
+
+	return await Promise.all(roomIds.map(async (roomId, idx) =&gt; {
+		const teaser = teasers[idx];
+		if (!teaser || !teaser.fromuid) {
+			return null;
+		}
+		if (userMap[teaser.fromuid]) {
+			teaser.user = userMap[teaser.fromuid];
+		}
+		teaser.content = validator.escape(
+			String(utils.stripHTMLTags(utils.decodeHTMLEntities(teaser.content)))
+		);
+		teaser.roomId = roomId;
+		const payload = await plugins.hooks.fire(&#039;filter:messaging.getTeaser&#039;, { teaser: teaser });
+		return payload.teaser;
+	}));
+};
+
+Messaging.getLatestUndeletedMessage = async (uid, roomId) =&gt; {
+	let done = false;
+	let latestMid = null;
+	let index = 0;
+	let mids;
+
+	while (!done) {
+		/* eslint-disable no-await-in-loop */
+		mids = await getMessageIds(roomId, uid, index, index);
+		if (mids.length) {
+			const states = await Messaging.getMessageFields(mids[0], [&#039;deleted&#039;, &#039;system&#039;]);
+			done = !states.deleted &amp;&amp; !states.system;
+			if (done) {
+				latestMid = mids[0];
+			}
+			index += 1;
+		} else {
+			done = true;
+		}
+	}
+
+	return latestMid;
+};
+
+Messaging.canMessageUser = async (uid, toUid) =&gt; {
+	if (meta.config.disableChat || uid &lt;= 0) {
+		throw new Error(&#039;[[error:chat-disabled]]&#039;);
+	}
+
+	if (parseInt(uid, 10) === parseInt(toUid, 10)) {
+		throw new Error(&#039;[[error:cant-chat-with-yourself]]&#039;);
+	}
+	const [exists, isTargetPrivileged, canChat, canChatWithPrivileged] = await Promise.all([
+		user.exists(toUid),
+		user.isPrivileged(toUid),
+		privileges.global.can(&#039;chat&#039;, uid),
+		privileges.global.can(&#039;chat:privileged&#039;, uid),
+		checkReputation(uid),
+	]);
+
+	if (!exists) {
+		throw new Error(&#039;[[error:no-user]]&#039;);
+	}
+
+	if (!canChat &amp;&amp; !(canChatWithPrivileged &amp;&amp; isTargetPrivileged)) {
+		throw new Error(&#039;[[error:no-privileges]]&#039;);
+	}
+
+	const [settings, isAdmin, isModerator, isFollowing, isBlocked] = await Promise.all([
+		user.getSettings(toUid),
+		user.isAdministrator(uid),
+		user.isModeratorOfAnyCategory(uid),
+		user.isFollowing(toUid, uid),
+		user.blocks.is(uid, toUid),
+	]);
+
+	if (isBlocked || (settings.restrictChat &amp;&amp; !isAdmin &amp;&amp; !isModerator &amp;&amp; !isFollowing)) {
+		throw new Error(&#039;[[error:chat-restricted]]&#039;);
+	}
+
+	await plugins.hooks.fire(&#039;static:messaging.canMessageUser&#039;, {
+		uid: uid,
+		toUid: toUid,
+	});
+};
+
+Messaging.canMessageRoom = async (uid, roomId) =&gt; {
+	if (meta.config.disableChat || uid &lt;= 0) {
+		throw new Error(&#039;[[error:chat-disabled]]&#039;);
+	}
+
+	const [roomData, inRoom, canChat] = await Promise.all([
+		Messaging.getRoomData(roomId),
+		Messaging.isUserInRoom(uid, roomId),
+		privileges.global.can([&#039;chat&#039;, &#039;chat:privileged&#039;], uid),
+		checkReputation(uid),
+		user.checkMuted(uid),
+	]);
+	if (!roomData) {
+		throw new Error(&#039;[[error:no-room]]&#039;);
+	}
+
+	if (!inRoom) {
+		throw new Error(&#039;[[error:not-in-room]]&#039;);
+	}
+
+	if (!canChat.includes(true)) {
+		throw new Error(&#039;[[error:no-privileges]]&#039;);
+	}
+
+	await plugins.hooks.fire(&#039;static:messaging.canMessageRoom&#039;, {
+		uid: uid,
+		roomId: roomId,
+	});
+};
+
+async function checkReputation(uid) {
+	if (meta.config[&#039;reputation:disabled&#039;]) {
+		return;
+	}
+	const [reputation, isPrivileged] = await Promise.all([
+		user.getUserField(uid, &#039;reputation&#039;),
+		user.isPrivileged(uid),
+	]);
+	if (!isPrivileged &amp;&amp; meta.config[&#039;min:rep:chat&#039;] &gt; reputation) {
+		throw new Error(`[[error:not-enough-reputation-to-chat, ${meta.config[&#039;min:rep:chat&#039;]}]]`);
+	}
+}
+
+Messaging.hasPrivateChat = async (uid, withUid) =&gt; {
+	if (parseInt(uid, 10) === parseInt(withUid, 10) ||
+		parseInt(uid, 10) &lt;= 0 || parseInt(withUid, 10) &lt;= 0) {
+		return 0;
+	}
+
+	const results = await utils.promiseParallel({
+		myRooms: db.getSortedSetRevRange(`uid:${uid}:chat:rooms`, 0, -1),
+		theirRooms: db.getSortedSetRevRange(`uid:${withUid}:chat:rooms`, 0, -1),
+	});
+	const roomIds = results.myRooms.filter(roomId =&gt; roomId &amp;&amp; results.theirRooms.includes(roomId));
+
+	if (!roomIds.length) {
+		return 0;
+	}
+
+	let index = 0;
+	let roomId = 0;
+	while (index &lt; roomIds.length &amp;&amp; !roomId) {
+		/* eslint-disable no-await-in-loop */
+		const count = await Messaging.getUserCountInRoom(roomIds[index]);
+		if (count === 2) {
+			roomId = roomIds[index];
+		} else {
+			index += 1;
+		}
+	}
+
+	return roomId;
+};
+
+Messaging.canViewMessage = async (mids, roomId, uid) =&gt; {
+	let single = false;
+	if (!Array.isArray(mids) &amp;&amp; isFinite(mids)) {
+		mids = [mids];
+		single = true;
+	}
+	const isPublic = parseInt(await db.getObjectField(`chat:room:${roomId}`, &#039;public&#039;), 10) === 1;
+	const [midTimestamps, userTimestamp] = await Promise.all([
+		db.sortedSetScores(`chat:room:${roomId}:mids`, mids),
+		db.sortedSetScore(`chat:room:${roomId}:uids`, uid),
+	]);
+
+	const canView = midTimestamps.map(
+		midTimestamp =&gt; !!(midTimestamp &amp;&amp; userTimestamp &amp;&amp; (isPublic || userTimestamp &lt;= midTimestamp))
+	);
+
+	return single ? canView.pop() : canView;
+};
+
+require(&#039;../promisify&#039;)(Messaging);</textarea>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="container">
+    <p>.</p>
+  </div>
+</footer>
+
+<script type="text/html" id="complexity-popover-template">
+  <div class="complexity-notice">
+    Complexity : {{ cyclomatic }} <br>
+    Length : {{ halstead.length }} <br>
+    Difficulty : {{ halstead.difficulty.toFixed(2) }} <br>
+    Est # bugs : {{ halstead.bugs.toFixed(2) }}<br>
+  </div>
+</script>
+
+<script type="text/javascript" src="../../assets/scripts/bundles/core-bundle.js"></script>
+<script type="text/javascript" src="../../assets/scripts/bundles/codemirror.js"></script>
+<script type="text/javascript" src="../../assets/scripts/codemirror.markpopovertext.js"></script>
+<script type="text/javascript" src="report.js"></script>
+<script type="text/javascript" src="report.history.js"></script>
+<script type="text/javascript" src="../../assets/scripts/plato-file.js"></script>
+</body>
+</html>

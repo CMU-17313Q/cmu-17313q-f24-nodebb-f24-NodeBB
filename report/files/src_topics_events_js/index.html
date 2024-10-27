@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Plato - src/topics/events.js</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="">
+  <meta name="author" content="">
+
+  <!--[if lt IE 9]>
+  <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+  <![endif]-->
+
+  <link href="../../assets/css/vendor/morris.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/bootstrap.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/font-awesome.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/codemirror.css" rel="stylesheet">
+  <link href="../../assets/css/plato.css" rel="stylesheet">
+  <link href="../../assets/css/plato-file.css" rel="stylesheet">
+
+</head>
+
+<body>
+
+<div class="navbar navbar-fixed-top">
+  <div class="container">
+    <a class="navbar-brand" href="http://github.com/es-analysis/plato">Plato on Github</a>
+    <ul class="nav navbar-nav">
+      <li>
+        <a href="../../index.html">Report Home</a>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div class="jumbotron">
+  <div class="container">
+    <h1>src/topics/events.js</h1>
+  </div>
+</div>
+
+<div class="container aggregate-stats">
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="header">Maintainability <a href="http://blogs.msdn.com/b/codeanalysis/archive/2007/11/20/maintainability-index-range-and-meaning.aspx"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="A value between 0 and 100 that represents the relative ease of maintaining the code. A high value means better maintainability." data-original-title="Maintainability Index"  data-container="body"></i></a></h2>
+      <p class="stat">78.38</p>
+    </div>
+    <div class="col-md-6">
+      <h2 class="header">Lines of code <i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Source Lines of Code / Logical Lines of Code" data-original-title="SLOC/LSLOC" data-container="body"></i></h2>
+      <p class="stat">260</p>
+    </div>
+  </div>
+  <div class="row historical">
+    <div class="col-md-6">
+      <p id="chart_historical_maint" class="chart"></p>
+    </div>
+    <div class="col-md-6">
+      <p id="chart_historical_sloc" class="chart"></p>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="header">Difficulty  <a href="http://en.wikipedia.org/wiki/Halstead_complexity_measures"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="The difficulty measure is related to the difficulty of the program to write or understand." data-original-title="Difficulty" data-container="body"></i></a></h2>
+      <p class="stat">42.04</p>
+    </div>
+    <div class="col-md-6">
+      <h2 class="header">Estimated Errors  <a href="http://en.wikipedia.org/wiki/Halstead_complexity_measures"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Halstead's delivered bugs is an estimate for the number of errors in the implementation." data-original-title="Delivered Bugs" data-container="body"></i></a></h2>
+      <p class="stat">3.51</p>
+    </div>
+  </div>
+</div>
+
+<div class="container charts">
+  <div class="row">
+    <h2 class="header">Function weight</h2>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h3 class="chart-header">By Complexity <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="This metric counts the number of distinct paths through a block of code. Lower values are better." data-original-title="Cyclomatic Complexity" data-container="body"></i></a></h3>
+      <div id="fn-by-complexity" class="stat"></div>
+    </div>
+    <div class="col-md-6">
+      <h3 class="chart-header">By SLOC  <i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Source Lines of Code / Logical Lines of Code" data-original-title="SLOC/LSLOC" data-container="body"></i></h3>
+      <div id="fn-by-sloc" class="stat"></div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="row">
+    <textarea id="file-source" class="col-md-12">&#039;use strict&#039;;
+
+const _ = require(&#039;lodash&#039;);
+const nconf = require(&#039;nconf&#039;);
+const db = require(&#039;../database&#039;);
+const meta = require(&#039;../meta&#039;);
+const user = require(&#039;../user&#039;);
+const posts = require(&#039;../posts&#039;);
+const categories = require(&#039;../categories&#039;);
+const plugins = require(&#039;../plugins&#039;);
+const translator = require(&#039;../translator&#039;);
+const privileges = require(&#039;../privileges&#039;);
+const utils = require(&#039;../utils&#039;);
+const helpers = require(&#039;../helpers&#039;);
+
+const relative_path = nconf.get(&#039;relative_path&#039;);
+
+const Events = module.exports;
+
+/**
+ * Note: Plugins!
+ *
+ * You are able to define additional topic event types here.
+ * Register to hook `filter:topicEvents.init` and append your custom type to the `types` object.
+ * You can then log a custom topic event by calling `topics.events.log(tid, { type, uid });`
+ * `uid` is optional; if you pass in a valid uid in the payload,
+ * the user avatar/username will be rendered as part of the event text
+ * see https://github.com/NodeBB/nodebb-plugin-question-and-answer/blob/master/library.js#L288-L306
+ */
+Events._types = {
+	pin: {
+		icon: &#039;fa-thumb-tack&#039;,
+		translation: async (event, language) =&gt; translateSimple(event, language, &#039;topic:user-pinned-topic&#039;),
+	},
+	unpin: {
+		icon: &#039;fa-thumb-tack fa-rotate-90&#039;,
+		translation: async (event, language) =&gt; translateSimple(event, language, &#039;topic:user-unpinned-topic&#039;),
+	},
+	lock: {
+		icon: &#039;fa-lock&#039;,
+		translation: async (event, language) =&gt; translateSimple(event, language, &#039;topic:user-locked-topic&#039;),
+	},
+	unlock: {
+		icon: &#039;fa-unlock&#039;,
+		translation: async (event, language) =&gt; translateSimple(event, language, &#039;topic:user-unlocked-topic&#039;),
+	},
+	delete: {
+		icon: &#039;fa-trash&#039;,
+		translation: async (event, language) =&gt; translateSimple(event, language, &#039;topic:user-deleted-topic&#039;),
+	},
+	restore: {
+		icon: &#039;fa-trash-o&#039;,
+		translation: async (event, language) =&gt; translateSimple(event, language, &#039;topic:user-restored-topic&#039;),
+	},
+	move: {
+		icon: &#039;fa-arrow-circle-right&#039;,
+		translation: async (event, language) =&gt; translateEventArgs(event, language, &#039;topic:user-moved-topic-from&#039;, renderUser(event), `${event.fromCategory.name}`, renderTimeago(event)),
+	},
+	&#039;post-queue&#039;: {
+		icon: &#039;fa-history&#039;,
+		translation: async (event, language) =&gt; translateEventArgs(event, language, &#039;topic:user-queued-post&#039;, renderUser(event), `${relative_path}${event.href}`, renderTimeago(event)),
+	},
+	backlink: {
+		icon: &#039;fa-link&#039;,
+		translation: async (event, language) =&gt; translateEventArgs(event, language, &#039;topic:user-referenced-topic&#039;, renderUser(event), `${relative_path}${event.href}`, renderTimeago(event)),
+	},
+	fork: {
+		icon: &#039;fa-code-fork&#039;,
+		translation: async (event, language) =&gt; translateEventArgs(event, language, &#039;topic:user-forked-topic&#039;, renderUser(event), `${relative_path}${event.href}`, renderTimeago(event)),
+	},
+	search: {
+		search: &#039;fa-fa-search&#039;,
+		translation: async (event, language) =&gt; translateEventArgs(event, language, &#039;topic:user-forked-topic&#039;, renderUser(event), `${relative_path}${event.href}`, renderTimeago(event)),
+	},
+
+};
+
+Events.init = async () =&gt; {
+	// Allow plugins to define additional topic event types
+	const { types } = await plugins.hooks.fire(&#039;filter:topicEvents.init&#039;, { types: Events._types });
+	Events._types = types;
+};
+
+async function translateEventArgs(event, language, prefix, ...args) {
+	const key = getTranslationKey(event, prefix);
+	const compiled = translator.compile.apply(null, [key, ...args]);
+	return utils.decodeHTMLEntities(await translator.translate(compiled, language));
+}
+
+async function translateSimple(event, language, prefix) {
+	return await translateEventArgs(event, language, prefix, renderUser(event), renderTimeago(event));
+}
+
+Events.translateSimple = translateSimple; // so plugins can perform translate
+Events.translateEventArgs = translateEventArgs; // so plugins can perform translate
+
+// generate `user-locked-topic-ago` or `user-locked-topic-on` based on timeago cutoff setting
+function getTranslationKey(event, prefix) {
+	const cutoffMs = 1000 * 60 * 60 * 24 * Math.max(0, parseInt(meta.config.timeagoCutoff, 10));
+	let translationSuffix = &#039;ago&#039;;
+	if (cutoffMs &gt; 0 &amp;&amp; Date.now() - event.timestamp &gt; cutoffMs) {
+		translationSuffix = &#039;on&#039;;
+	}
+	return `${prefix}-${translationSuffix}`;
+}
+
+function renderUser(event) {
+	if (!event.user || event.user.system) {
+		return &#039;[[global:system-user]]&#039;;
+	}
+	return `${helpers.buildAvatar(event.user, &#039;16px&#039;, true)} &lt;a href=&quot;${relative_path}/user/${event.user.userslug}&quot;&gt;${event.user.username}&lt;/a&gt;`;
+}
+
+function renderTimeago(event) {
+	return `&lt;span class=&quot;timeago timeline-text&quot; title=&quot;${event.timestampISO}&quot;&gt;&lt;/span&gt;`;
+}
+
+Events.get = async (tid, uid, reverse = false) =&gt; {
+	if (!tid) {
+		return [];
+	}
+
+	let eventIds = await db.getSortedSetRangeWithScores(`topic:${tid}:events`, 0, -1);
+	const keys = eventIds.map(obj =&gt; `topicEvent:${obj.value}`);
+	const timestamps = eventIds.map(obj =&gt; obj.score);
+	eventIds = eventIds.map(obj =&gt; obj.value);
+	let events = await db.getObjects(keys);
+	events.forEach((e, idx) =&gt; {
+		e.timestamp = timestamps[idx];
+	});
+	await addEventsFromPostQueue(tid, uid, events);
+	events = await modifyEvent({ uid, events });
+	if (reverse) {
+		events.reverse();
+	}
+	return events;
+};
+
+async function getUserInfo(uids) {
+	uids = uids.filter((uid, idx) =&gt; !isNaN(parseInt(uid, 10)) &amp;&amp; uids.indexOf(uid) === idx);
+	const userData = await user.getUsersFields(uids, [&#039;picture&#039;, &#039;username&#039;, &#039;userslug&#039;]);
+	const userMap = userData.reduce((memo, cur) =&gt; memo.set(cur.uid, cur), new Map());
+	userMap.set(&#039;system&#039;, {
+		system: true,
+	});
+
+	return userMap;
+}
+
+async function getCategoryInfo(cids) {
+	const uniqCids = _.uniq(cids);
+	const catData = await categories.getCategoriesFields(uniqCids, [&#039;name&#039;, &#039;slug&#039;, &#039;icon&#039;, &#039;color&#039;, &#039;bgColor&#039;]);
+	return _.zipObject(uniqCids, catData);
+}
+
+async function addEventsFromPostQueue(tid, uid, events) {
+	const isPrivileged = await user.isPrivileged(uid);
+	if (isPrivileged) {
+		const queuedPosts = await posts.getQueuedPosts({ tid }, { metadata: false });
+		events.push(...queuedPosts.map(item =&gt; ({
+			type: &#039;post-queue&#039;,
+			href: `/post-queue/${item.id}`,
+			timestamp: item.data.timestamp || Date.now(),
+			uid: item.data.uid,
+		})));
+	}
+}
+
+async function modifyEvent({ uid, events }) {
+	const [users, fromCategories, userSettings] = await Promise.all([
+		getUserInfo(events.map(event =&gt; event.uid).filter(Boolean)),
+		getCategoryInfo(events.map(event =&gt; event.fromCid).filter(Boolean)),
+		user.getSettings(uid),
+	]);
+
+	// Remove backlink events if backlinks are disabled
+	if (meta.config.topicBacklinks !== 1) {
+		events = events.filter(event =&gt; event.type !== &#039;backlink&#039;);
+	} else {
+		// remove backlinks that we dont have read permission
+		const backlinkPids = events.filter(e =&gt; e.type === &#039;backlink&#039;)
+			.map(e =&gt; e.href.split(&#039;/&#039;).pop());
+		const pids = await privileges.posts.filter(&#039;topics:read&#039;, backlinkPids, uid);
+		events = events.filter(
+			e =&gt; e.type !== &#039;backlink&#039; || pids.includes(e.href.split(&#039;/&#039;).pop())
+		);
+	}
+
+	// Remove events whose types no longer exist (e.g. plugin uninstalled)
+	events = events.filter(event =&gt; Events._types.hasOwnProperty(event.type));
+
+	// Add user &amp; metadata
+	events.forEach((event) =&gt; {
+		event.timestampISO = utils.toISOString(event.timestamp);
+		if (event.hasOwnProperty(&#039;uid&#039;)) {
+			event.user = users.get(event.uid === &#039;system&#039; ? &#039;system&#039; : parseInt(event.uid, 10));
+		}
+		if (event.hasOwnProperty(&#039;fromCid&#039;)) {
+			event.fromCategory = fromCategories[event.fromCid];
+		}
+
+		Object.assign(event, Events._types[event.type]);
+	});
+
+	await Promise.all(events.map(async (event) =&gt; {
+		if (Events._types[event.type].translation) {
+			event.text = await Events._types[event.type].translation(event, userSettings.userLang);
+		}
+	}));
+
+	// Sort events
+	events.sort((a, b) =&gt; a.timestamp - b.timestamp);
+
+	return events;
+}
+
+Events.log = async (tid, payload) =&gt; {
+	const topics = require(&#039;.&#039;);
+	const { type } = payload;
+	const timestamp = payload.timestamp || Date.now();
+
+	if (!Events._types.hasOwnProperty(type)) {
+		throw new Error(`[[error:topic-event-unrecognized, ${type}]]`);
+	} else if (!await topics.exists(tid)) {
+		throw new Error(&#039;[[error:no-topic]]&#039;);
+	}
+
+	const eventId = await db.incrObjectField(&#039;global&#039;, &#039;nextTopicEventId&#039;);
+	payload.id = eventId;
+
+	await Promise.all([
+		db.setObject(`topicEvent:${eventId}`, payload),
+		db.sortedSetAdd(`topic:${tid}:events`, timestamp, eventId),
+	]);
+	payload.timestamp = timestamp;
+	let events = await modifyEvent({
+		uid: payload.uid,
+		events: [payload],
+	});
+
+	({ events } = await plugins.hooks.fire(&#039;filter:topic.events.log&#039;, { events }));
+	return events;
+};
+
+Events.purge = async (tid, eventIds = []) =&gt; {
+	if (eventIds.length) {
+		const isTopicEvent = await db.isSortedSetMembers(`topic:${tid}:events`, eventIds);
+		eventIds = eventIds.filter((id, index) =&gt; isTopicEvent[index]);
+		await Promise.all([
+			db.sortedSetRemove(`topic:${tid}:events`, eventIds),
+			db.deleteAll(eventIds.map(id =&gt; `topicEvent:${id}`)),
+		]);
+	} else {
+		const keys = [`topic:${tid}:events`];
+		const eventIds = await db.getSortedSetRange(keys[0], 0, -1);
+		keys.push(...eventIds.map(id =&gt; `topicEvent:${id}`));
+
+		await db.deleteAll(keys);
+	}
+};</textarea>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="container">
+    <p>.</p>
+  </div>
+</footer>
+
+<script type="text/html" id="complexity-popover-template">
+  <div class="complexity-notice">
+    Complexity : {{ cyclomatic }} <br>
+    Length : {{ halstead.length }} <br>
+    Difficulty : {{ halstead.difficulty.toFixed(2) }} <br>
+    Est # bugs : {{ halstead.bugs.toFixed(2) }}<br>
+  </div>
+</script>
+
+<script type="text/javascript" src="../../assets/scripts/bundles/core-bundle.js"></script>
+<script type="text/javascript" src="../../assets/scripts/bundles/codemirror.js"></script>
+<script type="text/javascript" src="../../assets/scripts/codemirror.markpopovertext.js"></script>
+<script type="text/javascript" src="report.js"></script>
+<script type="text/javascript" src="report.history.js"></script>
+<script type="text/javascript" src="../../assets/scripts/plato-file.js"></script>
+</body>
+</html>
