@@ -154,6 +154,7 @@
         "zxcvbn": "4.4.2"
     },
     "devDependencies": {
+        "jshint": "^2.13.6",
         "flow-bin":"^0.250.0",
         "@stryker-mutator/core": "^8.6.0",
         "@apidevtools/swagger-parser": "10.1.0",
