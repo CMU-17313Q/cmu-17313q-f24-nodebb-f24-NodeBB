@@ -22,6 +22,7 @@ module.exports = function (Categories) {
 		const searchFor = query.toLowerCase();
 		const matchedTopics = topicsData.filter(topic => topic.title.toLowerCase().includes(searchFor));
 		const finalTopics = matchedTopics.map(topic => topic.title);
+		console.log(finalTopics);
 		return finalTopics;
 	};
 
