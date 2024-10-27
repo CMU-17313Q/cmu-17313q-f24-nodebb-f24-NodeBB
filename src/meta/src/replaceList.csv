@@ -1,0 +1,2 @@
+source,destination
+post.tpl,node_modules/nodebb-theme-harmony/templates/partials/topic/post.tpl
