@@ -154,6 +154,7 @@
         "zxcvbn": "4.4.2"
     },
     "devDependencies": {
+        "prettier": "3.3.3",
         "jshint": "^2.13.6",
         "flow-bin":"^0.250.0",
         "@stryker-mutator/core": "^8.6.0",
