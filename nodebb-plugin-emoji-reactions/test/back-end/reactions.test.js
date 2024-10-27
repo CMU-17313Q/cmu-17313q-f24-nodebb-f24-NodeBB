@@ -16,7 +16,7 @@ describe('Emoji Reactions API', () => {
 
   before((done) => {
     // Initialize the plugin or start the server if needed
-    server = app.init(); // Adjust based on your plugin's initialization
+    server = app.init(); 
     done();
   });
 
@@ -50,7 +50,6 @@ describe('Emoji Reactions API', () => {
           done();
         });
     });
-  });
 
     it('should return 400 for invalid reaction', (done) => {
       const postId = '3';
@@ -87,7 +86,7 @@ describe('Emoji Reactions API', () => {
       const postId = '3';
       const reaction = '👍';
 
-      // Stub the database method to simulate a server error
+      // Stub the database method to throw an error
       const setAddStub = sinon.stub(db, 'setAdd').rejects(new Error('Database Error'));
 
       chai.request(server)
@@ -100,5 +99,50 @@ describe('Emoji Reactions API', () => {
           done();
         });
     });
+  });
 
+  describe('GET /api/post/:postId/reactions', () => {
+    it('should retrieve reaction counts successfully', (done) => {
+      const postId = '3';
+      const reactionsData = {
+        '👍': 5,
+        '❤️': 3,
+        '😂': 2
+      };
+
+      // Stub the database methods to return predefined reaction counts
+      const setCardStubs = [
+        sinon.stub(db, 'setCard').withArgs(`post:${postId}:reactions:👍`).resolves(reactionsData['👍']),
+        sinon.stub(db, 'setCard').withArgs(`post:${postId}:reactions:❤️`).resolves(reactionsData['❤️']),
+        sinon.stub(db, 'setCard').withArgs(`post:${postId}:reactions:😂`).resolves(reactionsData['😂']),
+      ];
+
+      chai.request(server)
+        .get(`/api/post/${postId}/reactions`)
+        .end((err, res) => {
+          expect(res).to.have.status(200);
+          expect(res.body).to.have.property('success', true);
+          expect(res.body).to.have.property('reactions');
+          expect(res.body.reactions).to.deep.equal(reactionsData);
+          setCardStubs.forEach(stub => stub.restore());
+          done();
+        });
+    });
+
+    it('should handle server errors gracefully', (done) => {
+      const postId = '3';
+
+      // Stub the database method to throw an error
+      const setCardStub = sinon.stub(db, 'setCard').rejects(new Error('Database Error'));
+
+      chai.request(server)
+        .get(`/api/post/${postId}/reactions`)
+        .end((err, res) => {
+          expect(res).to.have.status(500);
+          expect(res.body).to.have.property('error', 'Database Error');
+          setCardStub.restore();
+          done();
+        });
+    });
+  });
 });

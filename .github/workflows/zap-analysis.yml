@@ -1,0 +1,34 @@
+name: OWASP ZAP Security Scan
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  zap:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Start NodeBB Application
+        run: |
+          # Commands to start your deployed NodeBB application
+          npm install
+          npm start &  # Starts NodeBB in the background
+
+      - name: Run OWASP ZAP Scan
+        uses: zaproxy/action-full-scan@v0.6.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          target: 'https://nodebb-pawsitive-p3.azurewebsites.net'  
+
+      - name: Stop NodeBB Application
+        run: |
+          # Stop NodeBB if necessary
+          npm stop

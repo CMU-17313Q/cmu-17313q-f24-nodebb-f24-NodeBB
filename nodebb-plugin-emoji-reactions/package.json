@@ -6,11 +6,3 @@
   "author": "Your Name",
   "license": "ISC"
 }
-{
-  "scripts": {
-    "test": "mocha --recursive",
-    "test:watch": "mocha --watch --recursive",
-    "test:front-end": "jest",
-    "test:e2e": "jest --config jest.e2e.config.js"
-  }
-}
