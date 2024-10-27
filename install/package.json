@@ -14,7 +14,8 @@
         "lint": "eslint --cache ./nodebb .",
         "test": "nyc --reporter=html --reporter=text-summary mocha",
         "coverage": "nyc report --reporter=text-lcov > ./coverage/lcov.info",
-        "coveralls": "nyc report --reporter=text-lcov | coveralls && rm -r coverage"
+        "coveralls": "nyc report --reporter=text-lcov | coveralls && rm -r coverage",
+        "flow":"flow"
     },
     "nyc": {
         "exclude": [
@@ -153,6 +154,8 @@
         "zxcvbn": "4.4.2"
     },
     "devDependencies": {
+        "flow-bin":"^0.250.0",
+        "@stryker-mutator/core": "^8.6.0",
         "@apidevtools/swagger-parser": "10.1.0",
         "@commitlint/cli": "19.3.0",
         "@commitlint/config-angular": "19.3.0",
