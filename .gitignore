@@ -10,7 +10,7 @@ node_modules/nodebb-theme-harmony/templates/*
 node_modules/nodebb-theme-harmony/templates/partials/*
 !node_modules/nodebb-theme-harmony/templates/partials/topic/
 node_modules/nodebb-theme-harmony/templates/partials/topic/*
-!node_modules/nodebb-theme-harmony/templates/partials/topic/post-menu-list.tpl
+!node_modules/nodebb-theme-harmony/templates/partials/topic/ForSaving.tpl
 sftp-config.json
 config.json
 jsconfig.json
