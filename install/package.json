@@ -15,8 +15,7 @@
         "test": "nyc --reporter=html --reporter=text-summary mocha",
         "coverage": "nyc report --reporter=text-lcov > ./coverage/lcov.info",
         "coveralls": "nyc report --reporter=text-lcov | coveralls && rm -r coverage",
-        "flow":"flow",
-        "postinstall": "cp node_modules/nodebb-theme-harmony/templates/partials/topic/ForSaving.tpl node_modules/nodebb-theme-harmony/templates/partials/topic/post-menu-list.tpl"
+        "flow":"flow"
     },
     "nyc": {
         "exclude": [
@@ -106,7 +105,6 @@
         "nodebb-plugin-ntfy": "1.7.4",
         "nodebb-plugin-spam-be-gone": "2.2.2",
         "nodebb-rewards-essentials": "1.0.0",
-        "nodebb-theme-harmony": "1.2.63",
         "nodebb-theme-lavender": "7.1.8",
         "nodebb-theme-peace": "2.2.6",
         "nodebb-theme-persona": "13.3.25",
