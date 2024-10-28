@@ -15,7 +15,8 @@
         "test": "nyc --reporter=html --reporter=text-summary mocha",
         "coverage": "nyc report --reporter=text-lcov > ./coverage/lcov.info",
         "coveralls": "nyc report --reporter=text-lcov | coveralls && rm -r coverage",
-        "flow":"flow"
+        "flow":"flow",
+        "postinstall": "cp node_modules/nodebb-theme-harmony/templates/partials/topic/ForSaving.tpl node_modules/nodebb-theme-harmony/templates/partials/topic/post-menu-list.tpl"
     },
     "nyc": {
         "exclude": [
