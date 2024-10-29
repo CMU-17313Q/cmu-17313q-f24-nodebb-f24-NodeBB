@@ -107,7 +107,6 @@
         "nodebb-rewards-essentials": "1.0.0",
         "nodebb-theme-lavender": "7.1.8",
         "nodebb-theme-peace": "2.2.6",
-        "nodebb-theme-harmony": "file:./node_modules/nodebb-theme-harmony",
         "nodebb-theme-persona": "13.3.25",
         "nodebb-widget-essentials": "7.0.18",
         "nodemailer": "6.9.13",
