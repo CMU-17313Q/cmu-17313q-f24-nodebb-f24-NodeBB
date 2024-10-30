@@ -3,10 +3,10 @@ name: JSHint
 on:
   push:
     branches:
-      - main
+      - f24
   pull_request:
     branches:
-      - main
+      - f24
 
 defaults:
   run:
