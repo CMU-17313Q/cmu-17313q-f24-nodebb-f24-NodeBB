@@ -142,7 +142,7 @@ SocketCategories.isModerator = async function (socket, cid) {
 SocketCategories.loadMoreSubCategories = async function (socket, data) {
 	sockets.warnDeprecated(socket, `GET /api/v3/categories/:cid/children`);
 
-	if (!data || !data.cid || !(parseInt(data.start, 10) >= 0)) {
+	if (!data || !data.cid || parseInt(data.start, 10) < 0) {
 		throw new Error('[[error:invalid-data]]');
 	}
 

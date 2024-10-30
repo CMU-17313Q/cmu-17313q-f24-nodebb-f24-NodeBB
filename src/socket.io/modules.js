@@ -112,7 +112,7 @@ SocketModules.chats.leavePublic = async function (socket, roomIds) {
 };
 
 async function joinLeave(socket, roomIds, method, prefix = 'chat_room') {
-	if (!(socket.uid > 0)) {
+	if (socket.uid <= 0) {
 		throw new Error('[[error:not-allowed]]');
 	}
 	if (!Array.isArray(roomIds)) {

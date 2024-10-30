@@ -704,7 +704,7 @@ usersAPI.generateExport = async (caller, { uid, type }) => {
 	if (!validTypes.includes(type)) {
 		throw new Error('[[error:invalid-data]]');
 	}
-	if (!utils.isNumber(uid) || !(parseInt(uid, 10) > 0)) {
+	if (!utils.isNumber(uid) || (parseInt(uid, 10) <= 0)) {
 		throw new Error('[[error:invalid-uid]]');
 	}
 	const count = await db.incrObjectField('locks', `export:${uid}${type}`);

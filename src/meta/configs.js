@@ -188,7 +188,7 @@ async function processConfig(data) {
 function ensureInteger(data, field, min) {
 	if (data.hasOwnProperty(field)) {
 		data[field] = parseInt(data[field], 10);
-		if (!(data[field] >= min)) {
+		if (data[field] < min) {
 			throw new Error('[[error:invalid-data]]');
 		}
 	}

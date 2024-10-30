@@ -867,7 +867,7 @@ Flags.appendNote = async function (flagId, uid, note, datetime) {
 			await Flags.deleteNote(flagId, datetime);
 		} catch (e) {
 			// Do not throw if note doesn't exist
-			if (!e.message === '[[error:invalid-data]]') {
+			if (e.message !== '[[error:invalid-data]]') {
 				throw e;
 			}
 		}

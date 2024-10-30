@@ -233,7 +233,7 @@ module.exports = function (Messaging) {
 	};
 
 	Messaging.toggleOwner = async (uid, roomId, state = null) => {
-		if (!(parseInt(uid, 10) > 0) || !roomId) {
+		if (parseInt(uid, 10) <= 0 || !roomId) {
 			throw new Error('[[error:invalid-data]]');
 		}
 

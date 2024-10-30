@@ -5,7 +5,7 @@ const io = require('../socket.io');
 
 module.exports = function (Messaging) {
 	Messaging.getUnreadCount = async (uid) => {
-		if (!(parseInt(uid, 10) > 0)) {
+		if (parseInt(uid, 10) <= 0) {
 			return 0;
 		}
 

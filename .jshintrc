@@ -1,0 +1,22 @@
+{
+    "esversion": 11,
+    "node": true,
+    "mocha": true,
+    "browser": true,
+    "globals": {
+      "jQuery": false,  
+      "$": true,       
+      "ajaxify": false,
+      "config": false,
+      "socket": true,
+      "app": true,
+      "overrides": true,
+      "utils": true,
+      "define": true,
+      "bootbox": true,
+      "escape": true,
+      "alert": true,
+      "self": true,
+      "AbortSignal": true
+    }
+  }

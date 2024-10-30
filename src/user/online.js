@@ -7,7 +7,7 @@ const meta = require('../meta');
 
 module.exports = function (User) {
 	User.updateLastOnlineTime = async function (uid) {
-		if (!(parseInt(uid, 10) > 0)) {
+		if (parseInt(uid, 10) <= 0) {
 			return;
 		}
 		const userData = await db.getObjectFields(`user:${uid}`, ['userslug', 'status', 'lastonline']);
@@ -19,7 +19,7 @@ module.exports = function (User) {
 	};
 
 	User.updateOnlineUsers = async function (uid) {
-		if (!(parseInt(uid, 10) > 0)) {
+		if (parseInt(uid, 10) <= 0) {
 			return;
 		}
 		const [exists, userOnlineTime] = await Promise.all([

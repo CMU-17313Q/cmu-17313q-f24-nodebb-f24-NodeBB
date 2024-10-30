@@ -202,7 +202,7 @@ module.exports = function (Topics) {
 	}
 
 	async function getWatchedTrackedCids(uid) {
-		if (!(parseInt(uid, 10) > 0)) {
+		if (parseInt(uid, 10) <= 0) {
 			return [];
 		}
 		const cids = await user.getCategoriesByStates(uid, [
@@ -349,7 +349,7 @@ module.exports = function (Topics) {
 	};
 
 	Topics.hasReadTopics = async function (tids, uid) {
-		if (!(parseInt(uid, 10) > 0)) {
+		if (parseInt(uid, 10) <= 0) {
 			return tids.map(() => false);
 		}
 		const [topicScores, userScores, tids_unread, blockedUids] = await Promise.all([

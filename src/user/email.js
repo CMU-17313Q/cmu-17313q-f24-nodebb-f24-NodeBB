@@ -215,7 +215,7 @@ UserEmail.confirmByCode = async function (code, sessionId) {
 
 // confirm uid's email via ACP
 UserEmail.confirmByUid = async function (uid, callerUid = 0) {
-	if (!(parseInt(uid, 10) > 0)) {
+	if (parseInt(uid, 10) <= 0) {
 		throw new Error('[[error:invalid-uid]]');
 	}
 	callerUid = callerUid || uid;
