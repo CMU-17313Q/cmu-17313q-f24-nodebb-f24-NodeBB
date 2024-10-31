@@ -211,6 +211,7 @@ define('forum/topic/posts', [
 		hooks.fire('action:posts.loading', { posts: data.posts, after: after, before: before });
 
 		app.parseAndTranslate('topic', 'posts', Object.assign({}, ajaxify.data, data), async function (html) {
+			// console.log('public/src/client/topic/posts.js, app.parseAndTranslate func data: ', data);
 			html = html.filter(function () {
 				const $this = $(this);
 				const pid = $this.attr('data-pid');

@@ -19,7 +19,7 @@ jobs:
       ./.github/workflows/test.yaml
 
   build-and-deploy:
-    if: github.repository == 'cmu-313/NodeBB'
+    if: github.repository == 'CMU-17313Q/nodebb-f24-syntax_squad'
     needs: lint-and-test
 
     runs-on: ubuntu-latest
@@ -34,7 +34,7 @@ jobs:
 
       - name: Set up NodeBB
         run: |
-          ./nodebb setup '{"url":"https://nodebb-f24.azurewebsites.net:443",
+          ./nodebb setup '{"url":"https://nodebb-syntaxsquad-f24.azurewebsites.net:443",
             "admin:username": "admin",
             "admin:password": "${{ secrets.ADMIN_PASSWORD }}",
             "admin:password:confirm": "${{ secrets.ADMIN_PASSWORD }}",
@@ -48,7 +48,8 @@ jobs:
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v2
         with:
-          app-name: 'nodebb-f24'
+          app-name: 'nodebb-syntaxsquad-f24'
           slot-name: 'Production'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_BFAB97B1AB1441ACA7C63280F91AD3F3 }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_85BF0DCA8B934F3684D404E088B53A9D }}
           package: .
+          

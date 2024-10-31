@@ -14,6 +14,7 @@ const helpers = require('./helpers');
 const pagination = require('../pagination');
 const utils = require('../utils');
 const analytics = require('../analytics');
+const api = require('../api'); // for search
 
 const topicsController = module.exports;
 
@@ -88,6 +89,7 @@ topicsController.get = async function getTopic(req, res, next) {
 	}
 	const { start, stop } = calculateStartStop(currentPage, postIndex, settings);
 
+	// here is where topic posts are retrieved
 	await topics.getTopicWithPosts(topicData, set, req.uid, start, stop, reverse);
 
 	topics.modifyPostsByPrivilege(topicData, userPrivileges);
@@ -354,6 +356,130 @@ function addOGImageTag(res, image) {
 		});
 	}
 }
+
+// replicating topicsController.get in retrieving posts to render them
+topicsController.search = async function (req, res, next) {
+	// console.log('topic_id: ', req.params.topic_id);
+	// const tid = req.params.topic_id;
+	const { tid } = req.query;
+	if (!utils.isNumber(tid)) {
+		return next(); // Handle the invalid tid case
+	}
+	let postIndex = parseInt(req.params.post_index, 10) || 1;
+	const topicData = await topics.getTopicData(tid);
+	if (!topicData) {
+		return next();
+	}
+	const [
+		userPrivileges,
+		settings,
+		rssToken,
+	] = await Promise.all([
+		privileges.topics.get(tid, req.uid),
+		user.getSettings(req.uid),
+		user.auth.getFeedToken(req.uid),
+	]);
+
+	let currentPage = parseInt(req.query.page, 10) || 1;
+	const pageCount = Math.max(1, Math.ceil((topicData && topicData.postcount) / settings.postsPerPage));
+	const invalidPagination = (settings.usePagination && (currentPage < 1 || currentPage > pageCount));
+	if (
+		userPrivileges.disabled ||
+		invalidPagination ||
+		(topicData.scheduled && !userPrivileges.view_scheduled)
+	) {
+		return next();
+	}
+
+	if (!userPrivileges['topics:read'] || (!topicData.scheduled && topicData.deleted && !userPrivileges.view_deleted)) {
+		return helpers.notAllowed(req, res);
+	}
+
+	if (req.params.post_index === 'unread') {
+		postIndex = await topics.getUserBookmark(tid, req.uid);
+	}
+
+	if (!res.locals.isAPI && (!req.params.slug || topicData.slug !== `${tid}/${req.params.slug}`) && (topicData.slug && topicData.slug !== `${tid}/`)) {
+		return helpers.redirect(res, `/topic/${topicData.slug}${postIndex ? `/${postIndex}` : ''}${generateQueryString(req.query)}`, true);
+	}
+
+	if (utils.isNumber(postIndex) && topicData.postcount > 0 && (postIndex < 1 || postIndex > topicData.postcount)) {
+		return helpers.redirect(res, `/topic/${tid}/${req.params.slug}${postIndex > topicData.postcount ? `/${topicData.postcount}` : ''}${generateQueryString(req.query)}`);
+	}
+	postIndex = Math.max(1, postIndex);
+	const sort = validSorts.includes(req.query.sort) ? req.query.sort : settings.topicPostSort;
+	const set = sort === 'most_votes' ? `tid:${tid}:posts:votes` : `tid:${tid}:posts`;
+	const reverse = sort === 'newest_to_oldest' || sort === 'most_votes';
+
+	if (!req.query.page) {
+		currentPage = calculatePageFromIndex(postIndex, settings);
+	}
+	if (settings.usePagination && req.query.page) {
+		const top = ((currentPage - 1) * settings.postsPerPage) + 1;
+		const bottom = top + settings.postsPerPage;
+		if (!req.params.post_index || (postIndex < top || postIndex > bottom)) {
+			postIndex = top;
+		}
+	}
+	const { start, stop } = calculateStartStop(currentPage, postIndex, settings);
+
+	// here is where topic posts are retrieved
+	await topics.getTopicWithPosts(topicData, set, req.uid, start, stop, reverse);
+	const searchData = await api.topics.search(req, req.query);
+	// console.log('/////***** api.topics.search return in topicsController.search: ', searchData);
+
+	topicData.posts = searchData.posts;
+
+	topics.modifyPostsByPrivilege(topicData, userPrivileges);
+	topicData.tagWhitelist = categories.filterTagWhitelist(topicData.tagWhitelist, userPrivileges.isAdminOrMod);
+
+	topicData.privileges = userPrivileges;
+	topicData.topicStaleDays = meta.config.topicStaleDays;
+	topicData['reputation:disabled'] = meta.config['reputation:disabled'];
+	topicData['downvote:disabled'] = meta.config['downvote:disabled'];
+	topicData.upvoteVisibility = meta.config.upvoteVisibility;
+	topicData.downvoteVisibility = meta.config.downvoteVisibility;
+	topicData['feeds:disableRSS'] = meta.config['feeds:disableRSS'] || 0;
+	topicData['signatures:hideDuplicates'] = meta.config['signatures:hideDuplicates'];
+	topicData.bookmarkThreshold = meta.config.bookmarkThreshold;
+	topicData.necroThreshold = meta.config.necroThreshold;
+	topicData.postEditDuration = meta.config.postEditDuration;
+	topicData.postDeleteDuration = meta.config.postDeleteDuration;
+	topicData.scrollToMyPost = settings.scrollToMyPost;
+	topicData.updateUrlWithPostIndex = settings.updateUrlWithPostIndex;
+	topicData.allowMultipleBadges = meta.config.allowMultipleBadges === 1;
+	topicData.privateUploads = meta.config.privateUploads === 1;
+	topicData.showPostPreviewsOnHover = meta.config.showPostPreviewsOnHover === 1;
+	topicData.sortOptionLabel = `[[topic:${validator.escape(String(sort)).replace(/_/g, '-')}]]`;
+	if (!meta.config['feeds:disableRSS']) {
+		topicData.rssFeedUrl = `${relative_path}/topic/${topicData.tid}.rss`;
+		if (req.loggedIn) {
+			topicData.rssFeedUrl += `?uid=${req.uid}&token=${rssToken}`;
+		}
+	}
+
+	topicData.postIndex = postIndex;
+
+	const [author] = await Promise.all([
+		user.getUserFields(topicData.uid, ['username', 'userslug']),
+		buildBreadcrumbs(topicData),
+		addOldCategory(topicData, userPrivileges),
+		addTags(topicData, req, res, currentPage),
+		incrementViewCount(req, tid),
+		markAsRead(req, tid),
+		analytics.increment([`pageviews:byCid:${topicData.category.cid}`]),
+	]);
+
+	topicData.author = author;
+	topicData.pagination = pagination.create(currentPage, pageCount, req.query);
+	topicData.pagination.rel.forEach((rel) => {
+		rel.href = `${url}/topic/${topicData.slug}${rel.href}`;
+		res.locals.linkTags.push(rel);
+	});
+	// console.log('***************topicData in topicsController.search**************: ', topicData);
+
+	res.render('topic', topicData);
+};
 
 topicsController.teaser = async function (req, res, next) {
 	const tid = req.params.topic_id;

@@ -1,10 +1,10 @@
 'use strict';
 
+
 module.exports = function (utils, Benchpress, relative_path) {
 	Benchpress.setGlobal('true', true);
 	Benchpress.setGlobal('false', false);
 	const oneDayInMs = 24 * 60 * 60 * 1000;
-
 	const helpers = {
 		displayMenuItem,
 		buildMetaTag,
@@ -282,7 +282,6 @@ module.exports = function (utils, Benchpress, relative_path) {
 
 		return icons;
 	}
-
 	function buildAvatar(userObj, size, rounded, classNames, component) {
 		/**
 		 * userObj requires:
@@ -294,6 +293,7 @@ module.exports = function (utils, Benchpress, relative_path) {
 		 */
 
 		// Try to use root context if passed-in userObj is undefined
+
 		if (!userObj) {
 			userObj = this;
 		}
@@ -317,6 +317,7 @@ module.exports = function (utils, Benchpress, relative_path) {
 		output += `<span${attr2String(attributes)} component="${component || 'avatar/icon'}" style="${styles.join(' ')} background-color: ${userObj['icon:bgColor']}">${userObj['icon:text']}</span>`;
 		return output;
 	}
+
 
 	function increment(value, inc) {
 		return String(value + parseInt(inc, 10));

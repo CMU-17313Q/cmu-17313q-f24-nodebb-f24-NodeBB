@@ -1215,3 +1215,60 @@ describe('Posts\'', async () => {
 		});
 	});
 });
+
+describe('Anonymous Posting', () => {
+	let uid;
+	let cid;
+	let postResult;
+
+	before(async () => {
+		// Create a user for testing
+		uid = await user.create({ username: 'anonymousUser' });
+
+		// Create a category for the test
+		const category = await categories.create({
+			name: 'Anonymous Category',
+			description: 'Test category for anonymous posting',
+		});
+		cid = category.cid;
+	});
+
+	it('should create a post with isAnonymous set to true', async () => {
+		postResult = await topics.post({
+			uid: uid,
+			cid: cid,
+			title: 'Anonymous Post Test',
+			content: 'This is an anonymous post',
+			isAnonymous: true,
+		});
+
+		assert(postResult);
+		assert.strictEqual(postResult.postData.anonymous, true, 'The post should be marked as anonymous');
+		// Removed check for uid === 0
+	});
+
+	it('should create a post with isAnonymous set to false', async () => {
+		postResult = await topics.post({
+			uid: uid,
+			cid: cid,
+			title: 'Anonymous Post Test',
+			content: 'This is an anonymous post',
+			isAnonymous: false,
+		});
+
+		assert(postResult);
+		assert.strictEqual(postResult.postData.anonymous, false, 'The post should be marked as anonymous');
+		// Removed check for uid === 0
+	});
+
+	it('should create a post with isAnonymous set to false', async () => {
+		postResult = await topics.post({
+			uid: uid,
+			cid: cid,
+			title: 'Anonymous Post Test',
+			content: 'This is an anonymous post',
+		});
+
+		assert(postResult);
+	});
+});

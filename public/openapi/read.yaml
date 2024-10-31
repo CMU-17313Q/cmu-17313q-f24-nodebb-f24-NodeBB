@@ -66,6 +66,8 @@ tags:
   - name: other
     description: Other one-off routes that do not fit in a section of their own
 paths:
+  /api/topics/:
+    $ref: 'read/topics.yaml'
   /api/:
     $ref: 'read/index.yaml'
   /api/admin:

@@ -16,6 +16,64 @@ const intFields = [
 ];
 
 module.exports = function (Topics) {
+	// adding search function here instead of in a separate search.js file
+	Topics.postSearch = async function (data) {
+		// console.log('in Topics.postSearch in src/topics/data.js');
+		// console.log('Topics.postSearch input data:', data);
+
+		const query = data.query || ''; // the search term
+		const tid = data.tid || 1; // topic id to search in
+		const uid = data.uid || 0; // user id of the searcher
+		const paginate = data.hasOwnProperty('paginate') ? data.paginate : true;
+
+		const startTime = process.hrtime();
+
+		// store posts associated with a topic
+		const set = `tid:${tid}:posts`;
+		// using topics functions to extract all posts and topic data
+		const topicData = await Topics.getTopicData(tid);
+		const postsData = await Topics.getTopicPosts(topicData, set, 0, -1, uid);
+
+		// console.log('posts data:', postsData);
+
+		// if the query is empty, return all posts
+		if (query.trim() === '') {
+			const searchResult = {
+				matchCount: postsData.length,
+				pageCount: paginate ? 1 : 0, // set to 1 page if pagination is enabled
+				posts: postsData, // return all posts
+			};
+
+			// console.log('searchResult when query is empty: ', searchResult);
+			return searchResult;
+		}
+
+		// filtering posts based on query
+		const filteredPosts = postsData.filter(post => post.content.toLowerCase().includes(query.toLowerCase()));
+
+		// the search result
+		const searchResult = {
+			matchCount: filteredPosts.length,
+			posts: filteredPosts, // include filtered posts in the result
+		};
+
+		if (paginate) {
+			const resultsPerPage = data.resultsPerPage || 10; // default results per page
+			const page = data.page || 1; // current page
+			const start = (page - 1) * resultsPerPage;
+			const stop = start + resultsPerPage;
+			searchResult.pageCount = Math.ceil(filteredPosts.length / resultsPerPage); // total pages
+			searchResult.posts = filteredPosts.slice(start, stop);
+		}
+
+		// timing the search
+		searchResult.timing = (process.hrtime(startTime)[1] / 1e6).toFixed(2); // ms timing
+
+		// console.log('Final searchResult: ', searchResult);
+		return searchResult;
+		// return filteredPosts;
+	};
+
 	Topics.getTopicsFields = async function (tids, fields) {
 		if (!Array.isArray(tids) || !tids.length) {
 			return [];

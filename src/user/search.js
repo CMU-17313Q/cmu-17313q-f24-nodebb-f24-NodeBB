@@ -26,6 +26,7 @@ module.exports = function (User) {
 
 
 	User.search = async function (data) {
+		// console.log('in User.search, src/user/search.js');
 		const query = data.query || '';
 		const searchBy = data.searchBy || 'username';
 		const page = data.page || 1;
@@ -75,6 +76,7 @@ module.exports = function (User) {
 
 		searchResult.timing = (process.elapsedTimeSince(startTime) / 1000).toFixed(2);
 		searchResult.users = userData.filter(user => user && user.uid > 0);
+		// console.log('searchResult of user.search: ', searchResult);
 		return searchResult;
 	};
 

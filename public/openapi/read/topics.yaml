@@ -1,0 +1,126 @@
+get:
+  tags:
+    - topics
+  summary: Search topic posts
+  description: Search for posts in a specified topic.
+  parameters:
+    - in: query
+      name: query
+      schema:
+        type: string
+      required: true
+      description: The search term to find posts within topics.
+      example: 'fun games'
+    - in: query
+      name: tid
+      schema:
+        type: number
+      required: false
+      description: The ID of a specific topic to search within.
+      example: 4
+    - in: query
+      name: page
+      schema:
+        type: number
+      required: false
+      description: The page number for paginated search results.
+      example: 1
+    - in: query
+      name: searchBy
+      schema:
+        type: string
+        enum: ['content', 'title']
+      required: false
+      description: Specifies whether to search by `content` or `title`.
+      example: 'content'
+  responses:
+    "200":
+      description: Search results from topics
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              matchCount:
+                type: number
+                description: The number of matched posts
+                example: 1
+              posts:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    pid:
+                      type: number
+                      description: Post ID
+                      example: 30
+                    uid:
+                      type: number
+                      description: User ID of the post author
+                      example: 1
+                    tid:
+                      type: number
+                      description: Topic ID
+                      example: 4
+                    content:
+                      type: string
+                      description: The content of the post
+                      example: '<p dir="auto">fun games discussion thread</p>'
+                    timestamp:
+                      type: number
+                      description: UNIX timestamp of post creation
+                      example: 1727293510979
+                    timestampISO:
+                      type: string
+                      description: ISO 8601 format timestamp
+                      example: '2024-09-25T19:45:10.979Z'
+                    eventStart:
+                      type: number
+                      description: Start timestamp for an event (if applicable)
+                      example: 1727293510979
+                    eventEnd:
+                      type: number
+                      description: End timestamp for an event (if applicable)
+                      example: 1727293549335
+                    user:
+                      type: object
+                      description: Information about the user who created the post
+                      properties:
+                        uid:
+                          type: number
+                          description: User ID
+                          example: 1
+                        username:
+                          type: string
+                          description: Username of the user
+                          example: 'john_doe'
+                    selfPost:
+                      type: boolean
+                      description: Whether the post is by the current user
+                      example: true
+                    deleted:
+                      type: number
+                      description: Whether the post is deleted (0 = false, 1 = true)
+                      example: 0
+                    upvotes:
+                      type: number
+                      description: Number of upvotes
+                      example: 0
+                    downvotes:
+                      type: number
+                      description: Number of downvotes
+                      example: 0
+              pageCount:
+                type: number
+                description: Total number of pages in the result set
+                example: 1
+              timing:
+                type: string
+                description: The time it took to perform the search, in seconds
+                example: '3.38'
+    "400":
+      description: Invalid request or missing parameters
+    "403":
+      description: Insufficient privileges to perform the search
+    "404":
+      description: Unable to find route

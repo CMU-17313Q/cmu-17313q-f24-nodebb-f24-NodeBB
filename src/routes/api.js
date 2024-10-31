@@ -4,11 +4,16 @@ const express = require('express');
 
 const uploadsController = require('../controllers/uploads');
 const helpers = require('./helpers');
+const topicsController = require('../controllers/topics');
 
 module.exports = function (app, middleware, controllers) {
 	const middlewares = [middleware.autoLocale, middleware.authenticateRequest];
 	const router = express.Router();
 	app.use('/api', router);
+
+	// added for topic posts search
+	// topicsController.search is the name of the controller function
+	router.get('/topics/', [...middlewares], helpers.tryRoute(topicsController.search));
 
 	router.get('/config', [...middlewares, middleware.applyCSRF], helpers.tryRoute(controllers.api.getConfig));
 

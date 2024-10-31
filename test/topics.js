@@ -2504,6 +2504,62 @@ describe('Topic\'s', () => {
 			assert(!score);
 		});
 	});
+
+	describe('.search()', () => {
+		let adminUid;
+		before(async () => {
+			adminUid = await User.create({ username: 'admin' });
+			const categoryObj = await categories.create({
+				name: 'Test Category',
+				description: 'Test category created by testing script',
+			});
+
+			topic = {
+				userId: adminUid,
+				categoryId: categoryObj.cid,
+				title: 'Test Topic Title',
+				content: 'The content of test topic',
+			};
+
+			// Create a topic first
+			topic.tid = await topics.create({
+				uid: adminUid,
+				title: topic.title,
+				content: topic.content,
+				cid: categoryObj.cid,
+			});
+		});
+
+		it('should return all posts matching user query', async () => {
+			// console.log('topic:', topic);
+			// console.log('topic.tid:', topic.tid);
+			const searchData = await topics.postSearch({ query: 'blocked' });
+			// console.log('searchData:', searchData);
+			assert.equal(searchData.matchCount, 1);
+			assert.equal(searchData.posts.length, 1);
+		});
+
+		it('should return all posts if the query is empty', async () => {
+			// console.log('topic:', topic);
+			// console.log('topic.tid:', topic.tid);
+			const searchData = await topics.postSearch({ query: '' });
+			// console.log('searchData:', searchData);
+			assert.equal(searchData.matchCount, 2);
+			assert.equal(searchData.posts.length, 2);
+		});
+
+		it('should return posts for a search query that isnt a full word', async () => {
+			const searchData = await topics.postSearch({ query: 'block' });
+			assert.equal(searchData.matchCount, 1);
+			assert.equal(searchData.posts.length, 1);
+		});
+
+		it('should return posts case-insensitively', async () => {
+			const searchData = await topics.postSearch({ query: 'BLOCK' });
+			assert.equal(searchData.matchCount, 1);
+			assert.equal(searchData.posts.length, 1);
+		});
+	});
 });
 
 describe('Topics\'', async () => {

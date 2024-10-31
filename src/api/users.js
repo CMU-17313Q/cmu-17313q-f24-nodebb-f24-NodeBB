@@ -597,7 +597,11 @@ async function canDeleteUids(uids) {
 	return true;
 }
 
+// if this is commented out, will get a "server responded with a status of 500 (Internal Server Error)" error
 usersAPI.search = async function (caller, data) {
+	// console.log('in src/api/users.js, usersAPI.search function');
+	// console.log('usersAPI.search caller input: ', caller);
+	// console.log('usersAPI.search data input: ' data); // =  { section: '', page: '1', query: 'm', sortBy: '' }
 	if (!data) {
 		throw new Error('[[error:invalid-data]]');
 	}

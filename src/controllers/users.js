@@ -32,8 +32,13 @@ usersController.index = async function (req, res, next) {
 	}
 };
 
+// if this is commented out, the search DOESNT WORK but theres no error
 usersController.search = async function (req, res) {
+	// this one line makes controller connect to API function
+	// searchData = searchResult, the return of the main search function
+	// console.log("in usersController.search, req.query: ", req.query);
 	const searchData = await api.users.search(req, req.query);
+	// console.log("searchData: ", searchData); //  { matchCount: 0, pageCount: 0, timing: '0.00', users: [] }
 
 	const section = req.query.section || 'joindate';
 

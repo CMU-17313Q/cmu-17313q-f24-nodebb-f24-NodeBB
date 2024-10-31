@@ -83,16 +83,8 @@ postsAPI.getRaw = async (caller, { pid }) => {
 	return result.postData.content;
 };
 
-postsAPI.edit = async function (caller, data) {
-	if (!data || !data.pid || (meta.config.minimumPostLength !== 0 && !data.content)) {
-		throw new Error('[[error:invalid-data]]');
-	}
-	if (!caller.uid) {
-		throw new Error('[[error:not-logged-in]]');
-	}
-	// Trim and remove HTML (latter for composers that send in HTML, like redactor)
-	const contentLen = utils.stripHTMLTags(data.content).trim().length;
-
+// Added code to lower cognitive complexity below, Procos12
+async function validatePost(data, meta, contentLen, caller) {
 	if (data.title && data.title.length < meta.config.minimumTitleLength) {
 		throw new Error(`[[error:title-too-short, ${meta.config.minimumTitleLength}]]`);
 	} else if (data.title && data.title.length > meta.config.maximumTitleLength) {
@@ -104,6 +96,19 @@ postsAPI.edit = async function (caller, data) {
 	} else if (!await posts.canUserPostContentWithLinks(caller.uid, data.content)) {
 		throw new Error(`[[error:not-enough-reputation-to-post-links, ${meta.config['min:rep:post-links']}]]`);
 	}
+}
+
+postsAPI.edit = async function (caller, data) {
+	if (!data || !data.pid || (meta.config.minimumPostLength !== 0 && !data.content)) {
+		throw new Error('[[error:invalid-data]]');
+	}
+	if (!caller.uid) {
+		throw new Error('[[error:not-logged-in]]');
+	}
+	// Trim and remove HTML (latter for composers that send in HTML, like redactor)
+	const contentLen = utils.stripHTMLTags(data.content).trim().length;
+
+	await validatePost(data, meta, contentLen, caller);
 
 	data.uid = caller.uid;
 	data.req = apiHelpers.buildReqObject(caller);

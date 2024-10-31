@@ -10,6 +10,15 @@ NodeBB by itself contains a "common core" of basic functionality, while addition
 
 ### [Try it now](//try.nodebb.org) | [Documentation](//docs.nodebb.org)
 
+
+### Team Members
++ Abdallah Almana aalmana@andrew.cmu.edu
++ Abdulwahab Al-Rumaihi arumaihi@andrew.cmu.edu
++ Hiba Hamad hhamad@andrew.cmu.edu
++ Najoud Al-Talib ntalib@andrew.cmu.edu
++ Reem Kensouh rkensouh@andrew.cmu.edu
+
+
 ## Screenshots
 
 NodeBB's theming engine is highly flexible and does not restrict your design choices. Check out some themed installs in these screenshots below:
@@ -81,3 +90,4 @@ Interested in a sublicense agreement for use of NodeBB in a non-free/restrictive
 * Unofficial IRC community &ndash; channel `#nodebb` on Libera.chat
 * [Follow us on Twitter](http://www.twitter.com/NodeBB/ "NodeBB Twitter")
 * [Like us on Facebook](http://www.facebook.com/NodeBB/ "NodeBB Facebook")
+* 
