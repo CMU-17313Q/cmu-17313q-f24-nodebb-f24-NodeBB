@@ -1,4 +1,4 @@
-name: Lint and test
+name: Lint and Test
 
 on:
   pull_request:
@@ -76,6 +76,10 @@ jobs:
 
       - name: Run ESLint
         run: npm run lint
+
+      - name: Run Flow for Type Checking
+        run: npx flow check
+        # Runs Flow to detect any type inconsistencies before merging
 
       - name: Node tests
         run: npm test
