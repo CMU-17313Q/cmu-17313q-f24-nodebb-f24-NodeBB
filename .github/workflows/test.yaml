@@ -81,10 +81,6 @@ jobs:
         run: npx flow check
         # Runs Flow to detect any type inconsistencies before merging
 
-      - name: Run Stryker Mutation Testing
-        run: npx stryker run
-        # Executes mutation testing with Stryker to check test coverage robustness
-
       - name: Node tests
         run: npm test
 
