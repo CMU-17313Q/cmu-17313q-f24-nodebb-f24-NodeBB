@@ -6,7 +6,7 @@ const validator = require('validator');
 const { JSDOM } = require('jsdom');
 const slugify = require('../src/slugify');
 const db = require('./mocks/databasemock');
-3
+
 describe('Utility Methods', () => {
 	// https://gist.github.com/robballou/9ee108758dc5e0e2d028
 	// create some jsdom magic to allow jQuery to work

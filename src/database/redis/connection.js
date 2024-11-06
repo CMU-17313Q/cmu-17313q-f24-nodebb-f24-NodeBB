@@ -9,6 +9,7 @@ const connection = module.exports;
 connection.connect = async function (options) {
 	return new Promise((resolve, reject) => {
 		options = options || nconf.get('redis');
+		console.log(nconf.get('redis'))
 		const redis_socket_or_host = options.host;
 
 		let cxn;
@@ -29,6 +30,7 @@ connection.connect = async function (options) {
 			});
 		} else {
 			// Else, connect over tcp/ip
+			console.log(options)
 			cxn = new Redis({
 				...options.options,
 				host: redis_socket_or_host,

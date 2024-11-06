@@ -1,7 +1,7 @@
 'use strict';
 
 define('quickreply', [
-	'components', 'composer', 'composer/autocomplete', 'api',
+	'components', 'composer', 'autocomplete', 'api',
 	'alerts', 'uploadHelpers', 'mousetrap', 'storage', 'hooks',
 ], function (
 	components, composer, autocomplete, api,

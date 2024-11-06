@@ -1,3 +1,5 @@
 {
-	"extends": "nodebb"
+	// "extends": "nodebb",
+	"rules": {},
+	"ignorePatterns": ["!.*"]
 }

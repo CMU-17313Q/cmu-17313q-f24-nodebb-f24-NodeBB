@@ -275,7 +275,6 @@ Flags.sort = async function (flagIds, sort) {
 
 // Chatgpt Assisted Code
 Flags.validate = async function (payload) {
-	console.log('Salman Al-Saigh');
 	const [target, reporter] = await Promise.all([
 		Flags.getTarget(payload.type, payload.id, payload.uid),
 		user.getUserData(payload.uid),

@@ -10,7 +10,7 @@ define('composer', [
 	'composer/categoryList',
 	'composer/preview',
 	'composer/resize',
-	'composer/autocomplete',
+	'autocomplete',
 	'composer/scheduler',
 	'composer/post-queue',
 	'scrollStop',
