@@ -2,6 +2,7 @@
 
 const request = require('request');
 
+
 const translatorApi = module.exports;
 
 translatorApi.translate = async function (postData) {
