@@ -1,7 +1,8 @@
 dist/
 yarn.lock
 npm-debug.log
-node_modules/
+node_modules/*
+!node_modules/nodebb-theme-harmony
 sftp-config.json
 config.json
 jsconfig.json
@@ -73,3 +74,5 @@ test.sh
 
 .docker/**
 !**/.gitkeep
+# stryker temp files
+.stryker-tmp/

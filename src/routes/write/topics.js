@@ -7,17 +7,53 @@ const routeHelpers = require('../helpers');
 
 const { setupApiRoute } = routeHelpers;
 
+const anonymousMiddleware = (req, res, next) => {
+	const { anon_post } = req.body;
+
+	if (anon_post && anon_post !== 'no') {
+		req.body.userData = {
+			username: `anonymous-${anon_post}`,
+			userslug: null,
+			uid: 0,
+		};
+		req.body.isAnonymous = true; // Set the anonymous flag
+	} else {
+		req.body.isAnonymous = false; // Default to non-anonymous
+	}
+	next();
+};
+
 module.exports = function () {
 	const middlewares = [middleware.ensureLoggedIn];
 
 	const multipart = require('connect-multiparty');
 	const multipartMiddleware = multipart();
 
-	setupApiRoute(router, 'post', '/', [middleware.checkRequired.bind(null, ['cid', 'title', 'content'])], controllers.write.topics.create);
-	setupApiRoute(router, 'get', '/:tid', [], controllers.write.topics.get);
-	setupApiRoute(router, 'post', '/:tid', [middleware.checkRequired.bind(null, ['content']), middleware.assert.topic], controllers.write.topics.reply);
-	setupApiRoute(router, 'delete', '/:tid', [...middlewares], controllers.write.topics.purge);
+	setupApiRoute(
+		router,
+		'post',
+		'/',
+		[
+			middleware.checkRequired.bind(null, ['cid', 'title', 'content']),
+			anonymousMiddleware, // Add this middleware here
+		],
+		controllers.write.topics.create
+	);
 
+	setupApiRoute(router, 'get', '/:tid', [], controllers.write.topics.get);
+	setupApiRoute(
+		router,
+		'post',
+		'/:tid',
+		[
+			middleware.checkRequired.bind(null, ['content']),
+			middleware.assert.topic,
+			anonymousMiddleware, // Add this middleware here
+		],
+		controllers.write.topics.reply
+	);
+
+	setupApiRoute(router, 'delete', '/:tid', [...middlewares], controllers.write.topics.purge);
 	setupApiRoute(router, 'put', '/:tid/state', [...middlewares], controllers.write.topics.restore);
 	setupApiRoute(router, 'delete', '/:tid/state', [...middlewares], controllers.write.topics.delete);
 

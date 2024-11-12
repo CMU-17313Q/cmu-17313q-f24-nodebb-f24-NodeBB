@@ -19,19 +19,26 @@ const cache = require('../cache');
 
 module.exports = function (Topics) {
 	Topics.createTags = async function (tags, tid, timestamp) {
+		console.log('dcharkvi');
 		if (!Array.isArray(tags) || !tags.length) {
 			return;
 		}
-
 		const cid = await Topics.getTopicField(tid, 'cid');
-		const topicSets = tags.map(tag => `tag:${tag}:topics`).concat(
-			tags.map(tag => `cid:${cid}:tag:${tag}:topics`)
-		);
+		const topicSets = generateTopicSets(tags, cid);
 		await db.sortedSetsAdd(topicSets, timestamp, tid);
 		await Topics.updateCategoryTagsCount([cid], tags);
-		await Promise.all(tags.map(updateTagCount));
+		await updateTagCountsForAll(tags);
 	};
-
+	function generateTopicSets(tags, cid) {
+		console.log('dcharkvi');
+		return tags.map(tag => `tag:${tag}:topics`).concat(
+			tags.map(tag => `cid:${cid}:tag:${tag}:topics`)
+		);
+	}
+	async function updateTagCountsForAll(tags) {
+		console.log('dcharkvi');
+		await Promise.all(tags.map(updateTagCount));
+	}
 	Topics.filterTags = async function (tags, cid) {
 		const result = await plugins.hooks.fire('filter:tags.filter', { tags: tags, cid: cid });
 		tags = _.uniq(result.tags)
@@ -65,36 +72,41 @@ module.exports = function (Topics) {
 			cids.map(cid => `cid:${cid}:tags`), '-inf', 0
 		);
 	};
-
 	Topics.validateTags = async function (tags, cid, uid, tid = null) {
+		console.log('dcharkvi');
 		if (!Array.isArray(tags)) {
 			throw new Error('[[error:invalid-data]]');
 		}
 		tags = _.uniq(tags);
-		const [categoryData, isPrivileged, currentTags] = await Promise.all([
+		const [categoryData, isPrivileged, currentTags] = await getValidationData(tags, cid, uid, tid);
+		validateTagCount(tags, categoryData);
+		await validateSystemTags(tags, currentTags, isPrivileged);
+	};
+	async function getValidationData(tags, cid, uid, tid) {
+		return await Promise.all([
 			categories.getCategoryFields(cid, ['minTags', 'maxTags']),
 			user.isPrivileged(uid),
 			tid ? Topics.getTopicTags(tid) : [],
 		]);
+	}
+	function validateTagCount(tags, categoryData) {
 		if (tags.length < parseInt(categoryData.minTags, 10)) {
 			throw new Error(`[[error:not-enough-tags, ${categoryData.minTags}]]`);
 		} else if (tags.length > parseInt(categoryData.maxTags, 10)) {
 			throw new Error(`[[error:too-many-tags, ${categoryData.maxTags}]]`);
 		}
-
+	}
+	async function validateSystemTags(tags, currentTags, isPrivileged) {
 		const addedTags = tags.filter(tag => !currentTags.includes(tag));
 		const removedTags = currentTags.filter(tag => !tags.includes(tag));
-		const systemTags = (meta.config.systemTags || '').split(',');
-
-		if (!isPrivileged && systemTags.length && addedTags.length && addedTags.some(tag => systemTags.includes(tag))) {
+		const systemTags = (meta.config.systemTags || '').split(',').map(tag => tag.trim()).filter(Boolean);
+		if (!isPrivileged && systemTags.length && addedTags.some(tag => systemTags.includes(tag))) {
 			throw new Error('[[error:cant-use-system-tag]]');
 		}
-
-		if (!isPrivileged && systemTags.length && removedTags.length && removedTags.some(tag => systemTags.includes(tag))) {
+		if (!isPrivileged && systemTags.length && removedTags.some(tag => systemTags.includes(tag))) {
 			throw new Error('[[error:cant-remove-system-tag]]');
 		}
-	};
-
+	}
 	async function filterCategoryTags(tags, cid) {
 		const tagWhitelist = await categories.getTagWhitelist([cid]);
 		if (!Array.isArray(tagWhitelist[0]) || !tagWhitelist[0].length) {
@@ -103,7 +115,6 @@ module.exports = function (Topics) {
 		const whitelistSet = new Set(tagWhitelist[0]);
 		return tags.filter(tag => whitelistSet.has(tag));
 	}
-
 	Topics.createEmptyTag = async function (tag) {
 		if (!tag) {
 			throw new Error('[[error:invalid-tag]]');
@@ -124,67 +135,55 @@ module.exports = function (Topics) {
 			.map(cid => ([`cid:${cid}:tags`, 0, tag]));
 		await db.sortedSetAddBulk(bulkAdd);
 	};
-
 	Topics.renameTags = async function (data) {
-		for (const tagData of data) {
-			// eslint-disable-next-line no-await-in-loop
-			await renameTag(tagData.value, tagData.newName);
-		}
+		console.log('dcharkvi');
+		await Promise.all(data.map(tagData => renameTag(tagData.value, tagData.newName)));
 	};
-
 	async function renameTag(tag, newTagName) {
+		console.log('dcharkvi');
 		if (!newTagName || tag === newTagName) {
 			return;
 		}
 		newTagName = utils.cleanUpTag(newTagName, meta.config.maximumTagLength);
-
 		await Topics.createEmptyTag(newTagName);
+		const allCids = await processTagForAllTids(tag, newTagName);
+		await Topics.updateCategoryTagsCount(Object.keys(allCids), [newTagName]);
+		await updateTagCount(newTagName);
+	}
+	async function processTagForAllTids(tag, newTagName) {
 		const allCids = {};
-
 		await batch.processSortedSet(`tag:${tag}:topics`, async (tids) => {
 			const topicData = await Topics.getTopicsFields(tids, ['tid', 'cid', 'tags']);
 			const cids = topicData.map(t => t.cid);
 			topicData.forEach((t) => { allCids[t.cid] = true; });
 			const scores = await db.sortedSetScores(`tag:${tag}:topics`, tids);
-			// update tag:<tag>:topics
-			await db.sortedSetAdd(`tag:${newTagName}:topics`, scores, tids);
-			await db.sortedSetRemove(`tag:${tag}:topics`, tids);
-
-			// update cid:<cid>:tag:<tag>:topics
-			await db.sortedSetAddBulk(topicData.map(
-				(t, index) => [`cid:${t.cid}:tag:${newTagName}:topics`, scores[index], t.tid]
-			));
-			await db.sortedSetRemove(cids.map(cid => `cid:${cid}:tag:${tag}:topics`), tids);
-
-			// update 'tags' field in topic hash
-			topicData.forEach((topic) => {
-				topic.tags = topic.tags.map(tagItem => tagItem.value);
-				const index = topic.tags.indexOf(tag);
-				if (index !== -1) {
-					topic.tags.splice(index, 1, newTagName);
-				}
-			});
-			await db.setObjectBulk(
-				topicData.map(t => [`topic:${t.tid}`, { tags: t.tags.join(',') }]),
-			);
+			await updateTagTopics(newTagName, tag, scores, tids, topicData, cids);
 		}, {});
-		const followers = await db.getSortedSetRangeWithScores(`tag:${tag}:followers`, 0, -1);
-		if (followers.length) {
-			const userKeys = followers.map(item => `uid:${item.value}:followed_tags`);
-			const scores = await db.sortedSetsScore(userKeys, tag);
-			await db.sortedSetsRemove(userKeys, tag);
-			await db.sortedSetsAdd(userKeys, scores, newTagName);
-			await db.sortedSetAdd(
-				`tag:${newTagName}:followers`,
-				followers.map(item => item.score),
-				followers.map(item => item.value),
-			);
-		}
-		await Topics.deleteTag(tag);
-		await updateTagCount(newTagName);
-		await Topics.updateCategoryTagsCount(Object.keys(allCids), [newTagName]);
+		return allCids;
 	}
-
+	async function updateTagTopics(newTagName, tag, scores, tids, topicData, cids) {
+		await db.sortedSetAdd(`tag:${newTagName}:topics`, scores, tids);
+		await db.sortedSetRemove(`tag:${tag}:topics`, tids);
+		// Update cid:<cid>:tag:<newTagName>:topics
+		await db.sortedSetAddBulk(topicData.map(
+			(t, index) => [`cid:${t.cid}:tag:${newTagName}:topics`, scores[index], t.tid]
+		));
+		await db.sortedSetRemove(cids.map(cid => `cid:${cid}:tag:${tag}:topics`), tids);
+		// Update 'tags' field in topic hash
+		await updateTopicHashTags(tids, topicData, tag, newTagName);
+	}
+	async function updateTopicHashTags(tids, topicData, oldTag, newTag) {
+		topicData.forEach((topic) => {
+			topic.tags = topic.tags.map(tagItem => tagItem.value);
+			const index = topic.tags.indexOf(oldTag);
+			if (index !== -1) {
+				topic.tags.splice(index, 1, newTag);
+			}
+		});
+		await db.setObjectBulk(
+			topicData.map(t => [`topic:${t.tid}`, { tags: t.tags.join(',') }]),
+		);
+	}
 	async function updateTagCount(tag) {
 		const count = await Topics.getTagTopicCount(tag);
 		await db.sortedSetAdd('tags:topic:count', count || 0, tag);
