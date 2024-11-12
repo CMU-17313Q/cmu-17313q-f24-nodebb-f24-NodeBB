@@ -14,7 +14,8 @@
         "lint": "eslint --cache ./nodebb .",
         "test": "nyc --reporter=html --reporter=text-summary mocha",
         "coverage": "nyc report --reporter=text-lcov > ./coverage/lcov.info",
-        "coveralls": "nyc report --reporter=text-lcov | coveralls && rm -r coverage"
+        "coveralls": "nyc report --reporter=text-lcov | coveralls && rm -r coverage",
+        "flow":"flow"
     },
     "nyc": {
         "exclude": [
@@ -104,8 +105,8 @@
         "nodebb-plugin-ntfy": "1.7.4",
         "nodebb-plugin-spam-be-gone": "2.2.2",
         "nodebb-rewards-essentials": "1.0.0",
-        "nodebb-theme-harmony": "1.2.63",
         "nodebb-theme-lavender": "7.1.8",
+        "nodebb-theme-harmony": "1.2.63",
         "nodebb-theme-peace": "2.2.6",
         "nodebb-theme-persona": "13.3.25",
         "nodebb-widget-essentials": "7.0.18",
@@ -153,6 +154,10 @@
         "zxcvbn": "4.4.2"
     },
     "devDependencies": {
+        "prettier": "3.3.3",
+        "jshint": "^2.13.6",
+        "flow-bin":"^0.250.0",
+        "@stryker-mutator/core": "^8.6.0",
         "@apidevtools/swagger-parser": "10.1.0",
         "@commitlint/cli": "19.3.0",
         "@commitlint/config-angular": "19.3.0",
